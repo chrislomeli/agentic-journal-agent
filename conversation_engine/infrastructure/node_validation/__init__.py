@@ -1,19 +1,13 @@
 """
-node_validation — Structured result envelope + input validation for LangGraph nodes.
+node_validation — Backwards-compatibility shim.
 
-- NodeResult — structured ok/error envelope every node can return
-- validated_node — decorator that validates state against a Pydantic schema
-- handle_error — generic error-handler node that reads NodeResult and marks failure
+Reusable node validation has moved to ``commons.node_validation``.
 """
 
-from conversation_engine.infrastructure.node_validation.result_schema import (
+from commons.node_validation import (
     NodeError,
     NodeResult,
-)
-from conversation_engine.infrastructure.node_validation.validator_decorator import (
     validated_node,
-)
-from conversation_engine.infrastructure.node_validation.handle_error import (
     handle_error,
 )
 

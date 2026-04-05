@@ -1,15 +1,21 @@
 """
-infrastructure — Backwards-compatibility shim.
+commons — Reusable LangGraph infrastructure.
 
-All reusable infrastructure has moved to the ``commons`` package.
-This module re-exports everything so existing imports keep working.
+A standalone Python package with zero domain dependencies.
+Drop into any LangGraph project for production-grade cross-cutting concerns.
 
-Domain-specific tools (conversation_tools, project_graph_tools,
-architectural_quiz) remain here because they depend on domain models.
+Subsystems
+----------
+1. middleware     — Composable NodeMiddleware chain + InstrumentedGraph
+2. tool_client   — Transport-agnostic tool contracts (MCP-ready)
+3. llm           — Protocol-based LLM interaction (CallLLM + stub + OpenAI)
+4. human         — Protocol-based human interaction (CallHuman + console + mock)
+5. node_validation — NodeResult envelope + validated_node decorator
+
+Dependencies: langgraph, langchain-core, langchain-openai, pydantic
 """
 
-# ── Re-exports from commons ─────────────────────────────────────────
-from commons import (
+from commons.middleware import (
     InstrumentedGraph,
     NodeMiddleware,
     LoggingMiddleware,
@@ -20,10 +26,14 @@ from commons import (
     RetryMiddleware,
     CircuitBreakerMiddleware,
     ConfigMiddleware,
+)
+from commons.node_validation import (
     NodeError,
     NodeResult,
     validated_node,
     handle_error,
+)
+from commons.tool_client import (
     ToolSpec,
     ToolRegistry,
     ToolContentBlock,
@@ -32,10 +42,23 @@ from commons import (
     ToolClient,
     ToolCallError,
     LocalToolClient,
+    specs_to_langchain_tools,
+    execute_tool_call,
+)
+from commons.llm import (
     CallLLM,
     LLMRequest,
     LLMResponse,
     call_llm_stub,
+    make_openai_llm,
+    OpenAICallLLM,
+    QuizQuestion,
+    LLMValidator,
+    LLMValidatorReport,
+    QuizResult,
+    quiz_report_summary,
+)
+from commons.human import (
     CallHuman,
     HumanRequest,
     HumanResponse,
@@ -43,21 +66,9 @@ from commons import (
     MockHuman,
 )
 
-# ── Legacy (deprecated) — kept for transition ───────────────────────
-from conversation_engine.infrastructure.instrumented_graph import (
-    Interceptor,
-    Middleware,
-)
-from conversation_engine.infrastructure.interceptors import (
-    LoggingInterceptor,
-    MetricsInterceptor,
-    NodeMetrics as _LegacyNodeMetrics,
-)
-
 __all__ = [
-    # Instrumented graph
-    "InstrumentedGraph",
     # Middleware
+    "InstrumentedGraph",
     "NodeMiddleware",
     "LoggingMiddleware",
     "MetricsMiddleware",
@@ -67,11 +78,6 @@ __all__ = [
     "RetryMiddleware",
     "CircuitBreakerMiddleware",
     "ConfigMiddleware",
-    # Legacy (deprecated)
-    "Interceptor",
-    "Middleware",
-    "LoggingInterceptor",
-    "MetricsInterceptor",
     # Node validation
     "NodeError",
     "NodeResult",
@@ -86,11 +92,20 @@ __all__ = [
     "ToolClient",
     "ToolCallError",
     "LocalToolClient",
+    "specs_to_langchain_tools",
+    "execute_tool_call",
     # LLM
     "CallLLM",
     "LLMRequest",
     "LLMResponse",
     "call_llm_stub",
+    "make_openai_llm",
+    "OpenAICallLLM",
+    "QuizQuestion",
+    "LLMValidator",
+    "LLMValidatorReport",
+    "QuizResult",
+    "quiz_report_summary",
     # Human
     "CallHuman",
     "HumanRequest",

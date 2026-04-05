@@ -18,7 +18,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from conversation_engine.infrastructure.tool_client.spec import ToolSpec
+from commons.tool_client import ToolSpec
 from conversation_engine.storage import ProjectStore
 from conversation_engine.storage.snapshot import ProjectSnapshot
 from conversation_engine.models.domain_config import DomainConfig

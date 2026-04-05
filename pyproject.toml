@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "conversation-agent"
@@ -24,9 +24,8 @@ dev = [
     "pytest-cov>=4.0",
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["conversation_engine*"]
+[tool.hatch.build.targets.wheel]
+packages = ["commons", "conversation_engine"]
 
 [tool.pytest.ini_options]
 testpaths = ["conversation_engine/tests"]

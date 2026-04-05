@@ -17,7 +17,7 @@ from typing import Any, Callable, List, Optional
 
 from pydantic import BaseModel, Field
 
-from conversation_engine.infrastructure.tool_client.spec import ToolSpec
+from commons.tool_client import ToolSpec
 
 
 # ── ask_human ─────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ def make_ask_human_tool(human_callable) -> ToolSpec:
     human_callable : CallHuman
         The human surface to use (ConsoleHuman, MockHuman, etc.)
     """
-    from conversation_engine.infrastructure.human import HumanRequest
+    from commons.human import HumanRequest
 
     def handler(input_: AskHumanInput) -> AskHumanOutput:
         response = human_callable(HumanRequest(

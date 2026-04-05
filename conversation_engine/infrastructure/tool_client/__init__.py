@@ -1,24 +1,26 @@
 """
-tool_client — Transport-agnostic tool contracts (MCP-ready).
+tool_client — Backwards-compatibility shim.
 
-Architecture:
-    LangGraph Node → ToolClient.call(name, args) → LocalToolClient (dev) / McpToolClient (prod)
-                                                     ↓
-                                                  ToolRegistry → ToolSpec → handler
+Core tool infrastructure has moved to ``commons.tool_client``.
+Domain-specific tools (conversation_tools, project_graph_tools)
+remain here because they depend on domain models.
 """
 
-from conversation_engine.infrastructure.tool_client.spec import ToolSpec
-from conversation_engine.infrastructure.tool_client.registry import ToolRegistry
-from conversation_engine.infrastructure.tool_client.envelope import (
+# ── Core (from commons) ─────────────────────────────────────────────
+from commons.tool_client import (
+    ToolSpec,
+    ToolRegistry,
     ToolContentBlock,
     ToolResultEnvelope,
     ToolResultMeta,
-)
-from conversation_engine.infrastructure.tool_client.client import (
     ToolClient,
     ToolCallError,
     LocalToolClient,
+    specs_to_langchain_tools,
+    execute_tool_call,
 )
+
+# ── Domain-specific tools (stay here) ───────────────────────────────
 from conversation_engine.infrastructure.tool_client.conversation_tools import (
     AskHumanInput,
     AskHumanOutput,
@@ -36,10 +38,6 @@ from conversation_engine.infrastructure.tool_client.project_graph_tools import (
     make_project_spec_tool,
     make_project_graph_tool,
 )
-from conversation_engine.infrastructure.tool_client.langchain_bridge import (
-    specs_to_langchain_tools,
-    execute_tool_call,
-)
 
 __all__ = [
     "ToolSpec",
@@ -50,7 +48,9 @@ __all__ = [
     "ToolClient",
     "ToolCallError",
     "LocalToolClient",
-    # Conversation tools
+    "specs_to_langchain_tools",
+    "execute_tool_call",
+    # Domain-specific conversation tools
     "AskHumanInput",
     "AskHumanOutput",
     "RevalidateInput",
@@ -60,12 +60,9 @@ __all__ = [
     "make_ask_human_tool",
     "make_revalidate_tool",
     "make_mark_complete_tool",
-    # Project spec tools
+    # Domain-specific project tools
     "ProjectGraphInput",
     "ProjectGraphOutput",
     "make_project_spec_tool",
     "make_project_graph_tool",
-    # LangChain bridge
-    "specs_to_langchain_tools",
-    "execute_tool_call",
 ]
