@@ -98,7 +98,7 @@ from uuid import uuid4
 
 from config_builder import configure_environment
 from llm_client import create_llm_client
-from storage import SessionStore
+from storage import SessionStore, SessionStoreJSON
 from model import Turn, Role
 
 JOURNAL_SYSTEM_PROMPT = "You are a transcriber who classifies the content of our conversation into one of the following categories: astronomy, biology, chemistry, physics, or other.  Always provide the answer to the question and a classification for the question"
@@ -116,7 +116,7 @@ def main():
     model_config = settings.selected_model
     client = create_llm_client(model_config.provider, model_config.api_key, model_config.model)
 
-    session = SessionStore()
+    session = SessionStoreJSON("data/sessions/test.jsonl")
     session_id  =  str(uuid4())
     turns = []
     while True:
