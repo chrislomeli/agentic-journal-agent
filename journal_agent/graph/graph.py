@@ -83,7 +83,7 @@ def build_journal_graph(
     builder = StateGraph(JournalState) # no_qa
 
     builder.add_node("get_user_input", _make_get_user_input(session_store=session_store))
-    builder.add_node("get_ai_response", _make_get_ai_response(llm=llm, session_store=session_store) )
+    builder.add_node("get_ai_response", _make_get_ai_response(llm=llm) )
     builder.add_node("save_turn", _make_save_turn(session_store=session_store))
 
     builder.add_edge(START, "get_user_input")
