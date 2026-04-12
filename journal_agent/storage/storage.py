@@ -5,7 +5,7 @@ from pathlib import Path
 import datetime
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 
-from model import Turn, Role
+from journal_agent.model import Turn, Role
 
 @dataclasses.dataclass
 class SessionData:
