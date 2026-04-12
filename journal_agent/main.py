@@ -36,6 +36,8 @@ def main():
     )
 
     # create a session store
+    # Data is saved under <project-root>/data/sessions by default.
+    # Set JOURNAL_AGENT_ROOT to override the root directory.
     session_store = SessionStore()
 
     # seed_context includes system prompt and previously stored messages

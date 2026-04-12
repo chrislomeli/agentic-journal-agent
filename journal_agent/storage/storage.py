@@ -1,5 +1,6 @@
 import dataclasses
 import json
+import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -23,10 +24,22 @@ class DataStore(ABC):
         pass
 
 
+def _resolve_project_root() -> Path:
+    configured_root = os.getenv("JOURNAL_AGENT_ROOT")
+    if configured_root:
+        return Path(configured_root).expanduser().resolve()
+
+    here = Path(__file__).resolve()
+    for candidate in [here, *here.parents]:
+        if (candidate / "pyproject.toml").exists():
+            return candidate
+
+    return Path.cwd().resolve()
+
+
 class SessionDatabase(DataStore):
     def __init__(self):
-        path_name = "data/sessions"  # this is just placeholder internal access - no one else needs to know or set this
-        self._path = Path(path_name)
+        self._path = _resolve_project_root() / "data" / "sessions"
         if not self._path.exists():
             self._path.mkdir(parents=True, exist_ok=True)
 
