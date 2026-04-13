@@ -7,16 +7,22 @@
     the literal subject might be AI, you decide that it's an interesting
     idea for exploration in a story
 
-- tag: software_project
-  goals: Assign this key to conversations about projects that could be undertaken
+- tag: project
+  goals: >-
+    Assign this key when the conversation involves a specific project
+    (new or existing). Set qualifier to the project name if one is
+    mentioned or can be inferred, or "new:<suggested_name>" if the
+    human is brainstorming a new project idea.
   example: >-
-    The human and AI are discussing a potential software project - you
-    classify it as software_project and provide some sort of name
+    The human is discussing a todo item for their journal_agent project →
+    tag: project, qualifier: journal_agent.
+    The human is brainstorming a recipe app →
+    tag: project, qualifier: new:recipe_app.
 
 - tag: humanity
   goals: Assign this key to conversations about philosophy AND human psychology
   example: >-
-    We are discussing subjects related to the state of human existence,
+    The human and AI  are discussing subjects related to the state of human existence,
     Stoicism, Buddhism, Cognitive Behavior
 
 - tag: health

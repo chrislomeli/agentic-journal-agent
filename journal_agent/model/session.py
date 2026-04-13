@@ -29,6 +29,7 @@ class Turn(BaseModel):
 
 class Tag(BaseModel):
     tag: str
+    qualifier: str | None = None
     note: str | None = None
 
 

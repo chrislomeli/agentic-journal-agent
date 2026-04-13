@@ -1,4 +1,5 @@
 import logging
+import uuid
 from collections.abc import Callable
 
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -52,6 +53,9 @@ def _make_fragment_extractor(llm: LLMClient, session_store: SessionStore) -> Cal
 
             structured_llm = llm.structured(list[Fragment])
             fragments = structured_llm.invoke([system, human])
+
+            for f in fragments:
+                f.id = str(uuid.uuid4())
 
             return {"fragments": fragments}
         except Exception as e:

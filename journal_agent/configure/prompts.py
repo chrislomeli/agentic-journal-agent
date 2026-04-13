@@ -76,9 +76,13 @@ Rules:
 - human_summary: transcribe the relevant parts of the human message,
   or copy it verbatim if it does not need condensing.
 - ai_summary: same treatment for the AI message.
-- tags: assign one or more tags from the Taxonomy. Each tag object has
-  a "tag" field (must be a value from the Taxonomy) and an optional
-  "note" for justification.
+- tags: assign one or more tags from the Taxonomy. Each tag object has:
+  - "tag" (required): a value from the Taxonomy.
+  - "qualifier" (optional): a structured sub-identifier when the
+    taxonomy entry calls for one. For example the "project" tag uses
+    qualifier to carry the project name. Only set qualifier when the
+    taxonomy goals explicitly ask for it.
+  - "note" (optional): free-text justification.
 - Read ALL exchanges together before classifying. Context matters —
   the human may refer to a previous exchange to hint at a category,
   e.g. "that last subject would be a good creative writing topic".
