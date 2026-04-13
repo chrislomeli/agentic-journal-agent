@@ -24,16 +24,8 @@ def _make_turn_classifier(llm: LLMClient, session_store: SessionStore) -> Callab
             turns = session_store.get_cached_turns()
             human_prompt = "Please classify these turns using the following Taxonomy : "  + json.dumps(TAXONOMY)
             system = SystemMessage(get_prompt("classifier"))
-
-            human = HumanMessage(content= < serialized turns + taxonomy >)
-            result = llm.chat([system, human])
-
-            # system prompt < key == classifier   -
-            # human prompt < key == classification task -   `
-            # llm client < key == classifier
-
-            messages = state["seed_context"] + state["session_messages"]
-            response = llm.chat(messages)  # model answers using context
+            human = HumanMessage(content=human_prompt)
+            response = llm.chat([system, human])
             content = (
                 response.content if isinstance(response.content, str) else str(response.content)
             )
