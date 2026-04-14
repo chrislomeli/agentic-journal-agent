@@ -9,6 +9,8 @@ from journal_agent.comms.llm_client import LLMClient
 from journal_agent.comms.llm_registry import LLMRegistry
 from journal_agent.graph.node_tracer import node_trace
 from journal_agent.graph.nodes.classifier import make_exchange_classifier, make_fragment_extractor
+from journal_agent.graph.nodes.save_data import make_save_transcript, make_save_exchanges, save_fragments, \
+    make_save_fragments
 from journal_agent.graph.state import (
     STATUS_COMPLETED,
     STATUS_ERROR,
@@ -111,7 +113,7 @@ def route_on_user_input(state: JournalState) -> str:
         )
         return END
     elif state["status"] == STATUS_COMPLETED:
-        return "exchange_classifier"
+        return "save_transcript"
     return "get_ai_response"
 
 
@@ -141,14 +143,19 @@ def build_journal_graph(
     builder.add_node("get_user_input", make_get_user_input(session_store=session_store))
     builder.add_node("get_ai_response", make_get_ai_response(llm=conversation_llm, session_store=session_store))
     builder.add_node("exchange_classifier", make_exchange_classifier(llm=conversation_llm, session_store=session_store))
-    builder.add_node("fragment_extractor", make_fragment_extractor(llm=conversation_llm, session_store=session_store))
-    builder.add_node("save_turn", make_save_turn(session_store=session_store))
+    builder.add_node("fragment_extractor", make_fragment_extractor(llm=conversation_llm))
+    builder.add_node("save_transcript", make_save_transcript())
+    builder.add_node("save_exchanges", make_save_exchanges())
+    builder.add_node("save_fragments", make_save_fragments())
+
 
     builder.add_edge(START, "get_user_input")
     builder.add_conditional_edges("get_user_input", route_on_user_input)
     builder.add_conditional_edges("get_ai_response", route_on_ai_response)
-    builder.add_edge("exchange_classifier", "fragment_extractor")
-    builder.add_edge("fragment_extractor", "save_turn")
-    builder.add_edge("save_turn", END)
+    builder.add_edge("save_transcript", "exchange_classifier")
+    builder.add_edge("exchange_classifier", "save_exchanges")
+    builder.add_edge("save_exchanges", "fragment_extractor")
+    builder.add_edge("fragment_extractor", "save_fragments")
+    builder.add_edge("save_fragments", END)
     compiled = builder.compile()
     return compiled
