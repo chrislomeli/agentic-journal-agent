@@ -6,7 +6,7 @@ from journal_agent.model.session import Fragment, Tag
 
 def fragment_to_chroma(f: Fragment) -> dict:
     return {
-        "id": f.id,
+        "id": f.fragment_id,
         "document": f.content,
         "metadata": {
             "session_id": f.session_id,
@@ -19,7 +19,7 @@ def fragment_to_chroma(f: Fragment) -> dict:
 def fragment_from_chroma(row: dict) -> Fragment:
     meta = row["metadata"]
     return Fragment(
-        id=row["id"],
+        fragment_id=row["id"],
         content=row["document"],
         session_id=meta["session_id"],
         exchange_ids=meta["exchange_ids"].split(",") if meta["exchange_ids"] else [],

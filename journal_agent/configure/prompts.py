@@ -13,6 +13,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 import yaml
+from pydantic import BaseModel
 
 from journal_agent.model.session import (
     ClassifiedExchange,
@@ -40,7 +41,7 @@ def taxonomy_json() -> str:
 
 
 # ── Schema helpers ─────────────────────────────────────────────────────────
-def _schema_block(model_cls: type) -> str:
+def _schema_block(model_cls: type[BaseModel]) -> str:
     """Return a compact JSON-Schema representation for a Pydantic model."""
     return json.dumps(model_cls.model_json_schema(), indent=2)
 
@@ -72,7 +73,7 @@ ClassifiedExchange schema:
 {_schema_block(ClassifiedExchange)}
 
 Rules:
-- Copy session_id and exchange_id from the input Exchange.
+- Copy session_id and exchange_ids from the input Exchanges that you construct this record from.  The session_id should be redundant, but if not take any session_id for now
 - human_summary: transcribe the relevant parts of the human message,
   or copy it verbatim if it does not need condensing.
 - ai_summary: same treatment for the AI message.
@@ -121,7 +122,7 @@ Rules:
 - Copy tags from the related ClassifiedExchange records.
 - Use the timestamp from the last related ClassifiedExchange, or the
   current datetime.
-- Generate a unique UUID for the "id" field.
+- Generate a unique UUID for the "fragment_id" field.
 """,
 }
 

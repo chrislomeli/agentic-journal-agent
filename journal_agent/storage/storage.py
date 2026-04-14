@@ -4,7 +4,9 @@ import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from journal_agent.model.session import Turn, Exchange
+from pydantic import BaseModel
+
+from journal_agent.model.session import Turn, Exchange, ClassifiedExchange
 from langchain_core.messages import BaseMessage
 
 #from journal_agent.storage.api import Exchange
@@ -39,9 +41,9 @@ def _resolve_project_root() -> Path:
     return Path.cwd().resolve()
 
 
-class SessionDatabase(DataStore):
-    def __init__(self):
-        self._path = _resolve_project_root() / "data" / "sessions"
+class JsonStore(DataStore):
+    def __init__(self, folder: str = "sessions"):
+        self._path = _resolve_project_root() / "data" / folder
         if not self._path.exists():
             self._path.mkdir(parents=True, exist_ok=True)
 
@@ -59,7 +61,7 @@ class SessionDatabase(DataStore):
         except ValueError:
             return None
 
-    def save_session(self, session_id: str, exchanges: list[Exchange]):
+    def save_session(self, session_id: str, exchanges: list[BaseModel]  ):
         if self._path is None:
             raise ValueError("Path name is not set")
 

@@ -7,7 +7,7 @@ from journal_agent.configure.config_builder import LLM_ROLE_CONFIG, configure_en
 from journal_agent.configure.prompts import get_prompt
 from journal_agent.graph.graph import build_journal_graph
 from journal_agent.graph.state import STATUS_IDLE
-from journal_agent.storage.store import SessionStore
+from journal_agent.storage.exchange_store import TranscriptStore
 from langchain_core.messages import BaseMessage, SystemMessage
 
 
@@ -30,11 +30,11 @@ def main():
     # create a session store
     # Data is saved under <project-root>/data/sessions by default.
     # Set JOURNAL_AGENT_ROOT to override the root directory.
-    session_store = SessionStore()
+    session_store = TranscriptStore()
 
     # seed_context includes system prompt and previously stored messages
     seed_context: list[BaseMessage] = [SystemMessage(get_prompt("conversation"))]
-    stored_messages: list[BaseMessage] = session_store.retrieve_context()
+    stored_messages: list[BaseMessage] = session_store.retrieve_transcript()
     seed_context.extend(stored_messages or [])
 
     session_id = str(uuid4())  # or loaded from prior session

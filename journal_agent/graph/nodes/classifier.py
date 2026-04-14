@@ -9,21 +9,22 @@ from journal_agent.configure.prompts import get_prompt, taxonomy_json
 from journal_agent.graph.node_tracer import node_trace
 from journal_agent.graph.state import (
     STATUS_ERROR,
-    JournalState,
+    JournalState, STATUS_FRAGMENTS_SAVED, STATUS_EXCHANGES_SAVED, STATUS_TRANSCRIPT_SAVED,
 )
 from journal_agent.model.session import ClassifiedExchange, Fragment
-from journal_agent.storage.store import SessionStore
+from journal_agent.storage.exchange_store import TranscriptStore
+from journal_agent.storage.storage import JsonStore
 
 logger = logging.getLogger(__name__)
 
-def _make_exchange_classifier(llm: LLMClient, session_store: SessionStore) -> Callable[..., dict]:
+def make_exchange_classifier(llm: LLMClient, session_store: TranscriptStore) -> Callable[..., dict]:
     @node_trace("exchange_classifier")
     def exchange_classifier(state: JournalState) -> dict:
         try:
             system_message = get_prompt("classifier") + "\n\nTaxonomy:\n" + taxonomy_json()
             system = SystemMessage(system_message)
 
-            exchanges = session_store.get_cached_exchanges()
+            exchanges = session_store.get_cached_transcript()
             human_prompt = "\n\n".join([turn.model_dump_json() for turn in exchanges])
             human = HumanMessage(content=human_prompt)
 
@@ -41,7 +42,7 @@ def _make_exchange_classifier(llm: LLMClient, session_store: SessionStore) -> Ca
     return exchange_classifier
 
 
-def _make_fragment_extractor(llm: LLMClient, session_store: SessionStore) -> Callable[..., dict]:
+def make_fragment_extractor(llm: LLMClient) -> Callable[..., dict]:
     @node_trace("fragment_extractor")
     def fragment_extractor(state: JournalState) -> dict:
         try:
@@ -55,7 +56,7 @@ def _make_fragment_extractor(llm: LLMClient, session_store: SessionStore) -> Cal
             fragments = structured_llm.invoke([system, human])
 
             for f in fragments:
-                f.id = str(uuid.uuid4())
+                f.fragment_id = str(uuid.uuid4())
 
             return {"fragments": fragments}
         except Exception as e:
@@ -66,3 +67,4 @@ def _make_fragment_extractor(llm: LLMClient, session_store: SessionStore) -> Cal
             }
 
     return fragment_extractor
+

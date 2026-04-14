@@ -34,7 +34,7 @@ class Tag(BaseModel):
 
 
 class Fragment(BaseModel):
-    id: str  # a unique uuid
+    fragment_id: str = Field(default_factory=lambda: str(uuid.uuid4())) # a unique uuid
     session_id: str  # (which Turn this came from)
     content: str  # your summary for searchable embedding
     exchange_ids: list[str]  # a list of exchange_id from the Exchange records that comprised this summary
@@ -50,8 +50,9 @@ class Exchange(BaseModel):
 
 
 class ClassifiedExchange(BaseModel):
+    classification_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     session_id: str  # copied from the Exchange record
-    exchange_id: list[str]  # a list of exchange_id from the Exchange records that comprised this summary
+    exchange_ids: list[str]  # a list of exchange_id from the Exchange records that comprised this summary
     human_summary: str  # transcribe the relevant parts of the human message or copy it if it does not need condensing
     ai_summary: str  # transcribe the relevant parts of the AI message or copy it if it does not need condensing
     tags: list[Tag]  # from TAXONOMY classify this record using the TAXONOMY provided

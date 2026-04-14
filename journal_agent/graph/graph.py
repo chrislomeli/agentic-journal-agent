@@ -8,6 +8,7 @@ from journal_agent.comms.human_chat import get_human_input
 from journal_agent.comms.llm_client import LLMClient
 from journal_agent.comms.llm_registry import LLMRegistry
 from journal_agent.graph.node_tracer import node_trace
+from journal_agent.graph.nodes.classifier import make_exchange_classifier, make_fragment_extractor
 from journal_agent.graph.state import (
     STATUS_COMPLETED,
     STATUS_ERROR,
@@ -15,7 +16,7 @@ from journal_agent.graph.state import (
     JournalState,
 )
 from journal_agent.model.session import Role
-from journal_agent.storage.store import SessionStore
+from journal_agent.storage.exchange_store import TranscriptStore
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 
-def _make_get_user_input(session_store: SessionStore) -> Callable[..., dict]:
+def make_get_user_input(session_store: TranscriptStore) -> Callable[..., dict]:
     @node_trace("get_user_input")
     def get_user_input(state: JournalState) -> dict:
 
@@ -55,7 +56,7 @@ def _make_get_user_input(session_store: SessionStore) -> Callable[..., dict]:
     return get_user_input
 
 
-def _make_get_ai_response(llm: LLMClient, session_store: SessionStore) -> Callable[..., dict]:
+def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore) -> Callable[..., dict]:
     @node_trace("get_ai_response")
     def get_ai_response(state: JournalState) -> dict:
         try:
@@ -64,7 +65,7 @@ def _make_get_ai_response(llm: LLMClient, session_store: SessionStore) -> Callab
             content = (
                 response.content if isinstance(response.content, str) else str(response.content)
             )
-            session_store.on_ai_turn(
+            exchange = session_store.on_ai_turn(
                 session_id=state["session_id"],
                 role=Role.AI,
                 content=content,
@@ -72,6 +73,7 @@ def _make_get_ai_response(llm: LLMClient, session_store: SessionStore) -> Callab
             print(content)
             return {
                 "session_messages": [AIMessage(content=content)],
+                "transcript" : exchange,
                 "status": STATUS_PROCESSING,
             }
         except Exception as e:
@@ -84,7 +86,7 @@ def _make_get_ai_response(llm: LLMClient, session_store: SessionStore) -> Callab
     return get_ai_response
 
 
-def _make_save_turn(session_store: SessionStore) -> Callable[..., dict]:
+def make_save_turn(session_store: TranscriptStore) -> Callable[..., dict]:
     @node_trace("save_turn")
     def save_turn(state: JournalState) -> dict:
         try:
@@ -109,7 +111,7 @@ def route_on_user_input(state: JournalState) -> str:
         )
         return END
     elif state["status"] == STATUS_COMPLETED:
-        return "save_turn"
+        return "exchange_classifier"
     return "get_ai_response"
 
 
@@ -128,7 +130,7 @@ def route_on_ai_response(state: JournalState) -> str:
 
 def build_journal_graph(
     registry: LLMRegistry,
-    session_store: SessionStore,
+    session_store: TranscriptStore,
 ):
     """Build and compile the journal conversation graph."""
     conversation_llm = registry.get("conversation")
@@ -136,13 +138,17 @@ def build_journal_graph(
     # noinspection PyTypeChecker
     builder = StateGraph(JournalState)  # no_qa
 
-    builder.add_node("get_user_input", _make_get_user_input(session_store=session_store))
-    builder.add_node("get_ai_response", _make_get_ai_response(llm=conversation_llm, session_store=session_store))
-    builder.add_node("save_turn", _make_save_turn(session_store=session_store))
+    builder.add_node("get_user_input", make_get_user_input(session_store=session_store))
+    builder.add_node("get_ai_response", make_get_ai_response(llm=conversation_llm, session_store=session_store))
+    builder.add_node("exchange_classifier", make_exchange_classifier(llm=conversation_llm, session_store=session_store))
+    builder.add_node("fragment_extractor", make_fragment_extractor(llm=conversation_llm, session_store=session_store))
+    builder.add_node("save_turn", make_save_turn(session_store=session_store))
 
     builder.add_edge(START, "get_user_input")
     builder.add_conditional_edges("get_user_input", route_on_user_input)
     builder.add_conditional_edges("get_ai_response", route_on_ai_response)
+    builder.add_edge("exchange_classifier", "fragment_extractor")
+    builder.add_edge("fragment_extractor", "save_turn")
     builder.add_edge("save_turn", END)
     compiled = builder.compile()
     return compiled
