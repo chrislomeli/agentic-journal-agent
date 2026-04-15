@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Callable
+from datetime import datetime
 
 from langchain_core.messages import SystemMessage, HumanMessage
 from typing_extensions import deprecated
@@ -12,7 +13,8 @@ from journal_agent.graph.state import (
     JournalState, )
 from journal_agent.model.session import ClassifiedExchangeList, FragmentList, \
     ThreadSegmentList, ExchangeClassificationRequest, ThreadSegment, Exchange, \
-    ThreadClassificationResponse, ExpandedThreadSegment, Fragment
+    ThreadClassificationResponse, ExpandedThreadSegment, Fragment, \
+    FragmentDraftList
 
 logger = logging.getLogger(__name__)
 
@@ -117,17 +119,28 @@ def make_thread_fragment_extractor(llm: LLMClient) -> Callable[..., dict]:
             system = SystemMessage(get_prompt("extractor"))
             fragment_list: list[Fragment] = []
 
+            session_id: str = state["session_id"]
             exchanges: list[Exchange] = state["transcript"]
             threads: list[ThreadSegment] = state["classified_threads"]
             expanded_threads = inflate_threads(threads, exchanges)
+
+            structured_llm = llm.structured(FragmentDraftList)
 
             for expanded_thread in expanded_threads:
                 human_prompt = expanded_thread.model_dump_json()
                 human = HumanMessage(content=human_prompt)
 
-                structured_llm = llm.structured(Fragment)
-                fragment = structured_llm.invoke([system, human])
-                fragment_list.append(fragment)
+                # LLM emits only reasoning decisions (content, exchange_ids, tags).
+                # Bookkeeping fields are filled in here, not by the model.
+                result = structured_llm.invoke([system, human])
+                for draft in result.fragments:
+                    fragment_list.append(Fragment(
+                        content=draft.content,
+                        exchange_ids=draft.exchange_ids,
+                        tags=draft.tags,
+                        session_id=session_id,
+                        timestamp=datetime.now(),
+                    ))
 
             return {"fragments": fragment_list}
 

@@ -90,3 +90,18 @@ class ExpandedThreadSegment(BaseModel):
 
 class ExpandedThreadSegmentList(BaseModel):
     threads: list[ExpandedThreadSegment]
+
+
+class FragmentDraft(BaseModel):
+    """Lean fragment output from the extractor LLM — only reasoning decisions.
+
+    Bookkeeping fields (session_id, fragment_id, timestamp) are filled in
+    by the node code post-hoc, not by the LLM.
+    """
+    content: str                   # the standalone, voice-preserving idea statement
+    exchange_ids: list[str]        # which thread exchange(s) this idea came from
+    tags: list[Tag]                # subset of the thread's tags that apply to this idea
+
+
+class FragmentDraftList(BaseModel):
+    fragments: list[FragmentDraft]
