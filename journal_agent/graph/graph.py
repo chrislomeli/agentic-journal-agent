@@ -8,8 +8,17 @@ from journal_agent.comms.human_chat import get_human_input
 from journal_agent.comms.llm_client import LLMClient
 from journal_agent.comms.llm_registry import LLMRegistry
 from journal_agent.graph.node_tracer import node_trace
-from journal_agent.graph.nodes.classifier import make_exchange_classifier, make_fragment_extractor
-from journal_agent.graph.nodes.save_data import make_save_transcript, make_save_exchanges, make_save_fragments
+from journal_agent.graph.nodes.classifier import (
+    make_exchange_decomposer,
+    make_thread_classifier,
+    make_thread_fragment_extractor,
+)
+from journal_agent.graph.nodes.save_data import (
+    make_save_transcript,
+    make_save_threads,
+    make_save_classified_threads,
+    make_save_fragments,
+)
 from journal_agent.graph.state import (
     STATUS_COMPLETED,
     STATUS_ERROR,
@@ -86,22 +95,6 @@ def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore) -> Call
 
     return get_ai_response
 
-#
-# def make_save_turn(session_store: TranscriptStore) -> Callable[..., dict]:
-#     @node_trace("save_turn")
-#     def save_turn(state: JournalState) -> dict:
-#         try:
-#             session_store.store_cache(state["session_id"])
-#             return {}
-#         except Exception as e:
-#             logger.exception("Failed to save turn information to store")
-#             return {
-#                 "status": STATUS_ERROR,
-#                 "error_message": str(e),
-#             }
-#
-#     return save_turn
-
 
 def route_on_user_input(state: JournalState) -> str:
     if state["status"] == STATUS_ERROR:
@@ -133,7 +126,18 @@ def build_journal_graph(
     registry: LLMRegistry,
     session_store: TranscriptStore,
 ):
-    """Build and compile the journal conversation graph."""
+    """Build and compile the journal conversation graph.
+
+    End-of-session classification pipeline (runs after user quits):
+      save_transcript
+        → exchange_decomposer       (transcript → threads)
+        → save_threads
+        → thread_classifier         (threads → classified_threads with tags)
+        → save_classified_threads
+        → thread_fragment_extractor (classified_threads → fragments)
+        → save_fragments
+        → END
+    """
     conversation_llm = registry.get("conversation")
     classifier_llm = registry.get("classifier")
     extractor_llm = registry.get("extractor")
@@ -141,22 +145,34 @@ def build_journal_graph(
     # noinspection PyTypeChecker
     builder = StateGraph(JournalState)  # no_qa
 
+    # Conversation loop nodes
     builder.add_node("get_user_input", make_get_user_input(session_store=session_store))
     builder.add_node("get_ai_response", make_get_ai_response(llm=conversation_llm, session_store=session_store))
-    builder.add_node("exchange_classifier", make_exchange_classifier(llm=classifier_llm))
-    builder.add_node("fragment_extractor", make_fragment_extractor(llm=extractor_llm))
+
+    # End-of-session classification pipeline (decomposed: 3 LLM stages)
+    builder.add_node("exchange_decomposer", make_exchange_decomposer(llm=classifier_llm))
+    builder.add_node("thread_classifier", make_thread_classifier(llm=classifier_llm))
+    builder.add_node("thread_fragment_extractor", make_thread_fragment_extractor(llm=extractor_llm))
+
+    # Persistence nodes (one per pipeline artifact)
     builder.add_node("save_transcript", make_save_transcript())
-    builder.add_node("save_exchanges", make_save_exchanges())
+    builder.add_node("save_threads", make_save_threads())
+    builder.add_node("save_classified_threads", make_save_classified_threads())
     builder.add_node("save_fragments", make_save_fragments())
 
-
+    # Wiring
     builder.add_edge(START, "get_user_input")
     builder.add_conditional_edges("get_user_input", route_on_user_input)
     builder.add_conditional_edges("get_ai_response", route_on_ai_response)
-    builder.add_edge("save_transcript", "exchange_classifier")
-    builder.add_edge("exchange_classifier", "save_exchanges")
-    builder.add_edge("save_exchanges", "fragment_extractor")
-    builder.add_edge("fragment_extractor", "save_fragments")
+
+    # Linear end-of-session pipeline
+    builder.add_edge("save_transcript", "exchange_decomposer")
+    builder.add_edge("exchange_decomposer", "save_threads")
+    builder.add_edge("save_threads", "thread_classifier")
+    builder.add_edge("thread_classifier", "save_classified_threads")
+    builder.add_edge("save_classified_threads", "thread_fragment_extractor")
+    builder.add_edge("thread_fragment_extractor", "save_fragments")
     builder.add_edge("save_fragments", END)
+
     compiled = builder.compile()
     return compiled

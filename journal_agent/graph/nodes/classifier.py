@@ -155,6 +155,7 @@ def make_thread_fragment_extractor(llm: LLMClient) -> Callable[..., dict]:
 
 
 
+@deprecated("Old one-shot pipeline — use make_exchange_decomposer + make_thread_classifier.")
 def make_exchange_classifier(llm: LLMClient) -> Callable[..., dict]:
     @node_trace("exchange_classifier")
     def exchange_classifier(state: JournalState) -> dict:
@@ -182,6 +183,7 @@ def make_exchange_classifier(llm: LLMClient) -> Callable[..., dict]:
 
 
 
+@deprecated("Old one-shot pipeline — use make_thread_fragment_extractor.")
 def make_fragment_extractor(llm: LLMClient) -> Callable[..., dict]:
     @node_trace("fragment_extractor")
     def fragment_extractor(state: JournalState) -> dict:

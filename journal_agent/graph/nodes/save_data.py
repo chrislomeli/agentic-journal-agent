@@ -1,10 +1,17 @@
 import logging
 from collections.abc import Callable
 
+from typing_extensions import deprecated
+
 from journal_agent.graph.node_tracer import node_trace
 from journal_agent.graph.state import (
     STATUS_ERROR,
-    JournalState, STATUS_FRAGMENTS_SAVED, STATUS_EXCHANGES_SAVED, STATUS_TRANSCRIPT_SAVED,
+    JournalState,
+    STATUS_FRAGMENTS_SAVED,
+    STATUS_EXCHANGES_SAVED,
+    STATUS_TRANSCRIPT_SAVED,
+    STATUS_THREADS_SAVED,
+    STATUS_CLASSIFIED_THREADS_SAVED,
 )
 from journal_agent.storage.storage import JsonStore
 
@@ -40,6 +47,7 @@ def make_save_transcript() -> Callable[..., dict]:
     return save_transcript
 
 
+@deprecated("Old one-shot pipeline — use make_save_threads + make_save_classified_threads.")
 def make_save_exchanges() -> Callable[..., dict]:
     @node_trace("save_exchanges")
     def save_exchanges(state: JournalState) -> dict:
@@ -68,6 +76,52 @@ def make_save_exchanges() -> Callable[..., dict]:
             }
 
     return save_exchanges
+
+
+def make_save_threads() -> Callable[..., dict]:
+    @node_trace("save_threads")
+    def save_threads(state: JournalState) -> dict:
+        try:
+            session_id = state["session_id"]
+            content = state["threads"]
+
+            store = JsonStore("threads")
+            store.save_session(session_id, content)
+
+            return {
+                "status": STATUS_THREADS_SAVED
+            }
+        except Exception as e:
+            logger.exception("Failed to save threads")
+            return {
+                "status": STATUS_ERROR,
+                "error_message": str(e),
+            }
+
+    return save_threads
+
+
+def make_save_classified_threads() -> Callable[..., dict]:
+    @node_trace("save_classified_threads")
+    def save_classified_threads(state: JournalState) -> dict:
+        try:
+            session_id = state["session_id"]
+            content = state["classified_threads"]
+
+            store = JsonStore("classified_threads")
+            store.save_session(session_id, content)
+
+            return {
+                "status": STATUS_CLASSIFIED_THREADS_SAVED
+            }
+        except Exception as e:
+            logger.exception("Failed to save classified threads")
+            return {
+                "status": STATUS_ERROR,
+                "error_message": str(e),
+            }
+
+    return save_classified_threads
 
 
 def make_save_fragments() -> Callable[..., dict]:

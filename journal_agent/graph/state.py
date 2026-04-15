@@ -9,7 +9,9 @@ STATUS_IDLE = "idle"
 STATUS_PROCESSING = "processing"
 STATUS_COMPLETED = "completed"
 STATUS_TRANSCRIPT_SAVED = "transcript_saved"
-STATUS_EXCHANGES_SAVED = "exchanges_saved"
+STATUS_EXCHANGES_SAVED = "exchanges_saved"   # deprecated — old one-shot pipeline
+STATUS_THREADS_SAVED = "threads_saved"
+STATUS_CLASSIFIED_THREADS_SAVED = "classified_threads_saved"
 STATUS_FRAGMENTS_SAVED = "fragments_saved"
 STATUS_ERROR = "error"
 
