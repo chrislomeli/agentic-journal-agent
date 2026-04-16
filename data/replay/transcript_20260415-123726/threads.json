@@ -11,7 +11,7 @@
     "tags": []
   },
   {
-    "thread_name": "exploration_of_agentic_ai",
+    "thread_name": "agentic_ai_exploration",
     "exchange_ids": [
       "da7953ad-cb55-4eb8-878a-5ec7c1646aa1",
       "dfc84c11-100d-4fb5-a00e-0a016c99588e",
@@ -26,6 +26,16 @@
     "thread_name": "music_theory_keys_question",
     "exchange_ids": [
       "c0590f16-71bf-4230-858a-c0a68a51f043"
+    ],
+    "tags": []
+  },
+  {
+    "thread_name": "heel_pain_diagnosis_and_treatment",
+    "exchange_ids": [
+      "a6cda19b-29d8-4004-8746-012004ec87b9",
+      "0482db8d-b637-48f9-bcdb-d61a3a1aaae7",
+      "7a948ac4-0c9c-43bc-bf8c-3c8a10eb54b5",
+      "cee4d8bb-6aa8-4acd-b79a-7a071a4b4d3e"
     ],
     "tags": []
   }

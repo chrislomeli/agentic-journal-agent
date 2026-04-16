@@ -7,6 +7,12 @@ import chromadb
 from journal_agent.model.session import Fragment, Tag
 from journal_agent.storage.utils import resolve_project_root
 
+"""
+
+  - Architecture: inject (match the LLMClient pattern). Not state, not inside TranscriptStore.
+  - Code: nearly complete. Add an add_fragments method so the live pipeline can push new fragments after each session.
+  - Wire it into both make_retrieve_fragments (new, for the read path — Phase 6) and make_save_fragments (update, add vector write alongside JSON write)
+"""
 
 class VectorStore:
 
@@ -35,6 +41,12 @@ class VectorStore:
     def rebuild_chroma_from_json(self, full_path: Path):
         # Assuming 'collection' is your collection object
         self.truncate_collection()
+        self.add_to_chroma_from_json(full_path)
+
+
+    def add_to_chroma_from_json(self, full_path: Path):
+        # Assuming 'collection' is your collection object
+        self.truncate_collection()
 
         for json_file in full_path.glob("*.json"):
             objects = json.loads(json_file.read_text())
@@ -43,7 +55,7 @@ class VectorStore:
             for f in objects:
                 d = self.fragment_to_chroma(Fragment(**f))
                 ids.append(d["id"])
-                docs.append(d["document"])
+                docs.append(d["document"]  + "  TAGS: " + d["metadata"]["tags"])
                 metas.append(d["metadata"])
             self.collection.add(ids=ids, documents=docs, metadatas=metas)
 
@@ -104,9 +116,25 @@ class VectorStore:
         )
 
 
+def get_vector_store(rebuild: bool = False):
+    vs = VectorStore()
+    data_folder = resolve_project_root() / "data" / "test"
+    if rebuild:
+        vs.rebuild_chroma_from_json(data_folder)
+    return vs
+
+
 if __name__ == "__main__":
-    v = VectorStore()
-    json_folder = resolve_project_root() / "data" / "test"
-    v.rebuild_chroma_from_json(json_folder)
-    fragments = v.search_fragments("i want to discuss music theory")
-    print("done")
+    v = get_vector_store(rebuild=True)
+    fragments = v.search_fragments("lets discuss humanity")
+
+    history = json.dumps([{
+        "content": f.content,
+        "tag": [t.tag for t in f.tags]
+    } for f in fragments])
+
+    print(history)
+
+
+
+    print(fragments)

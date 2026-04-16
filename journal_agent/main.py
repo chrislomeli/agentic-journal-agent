@@ -10,6 +10,8 @@ from journal_agent.graph.state import STATUS_IDLE
 from journal_agent.storage.exchange_store import TranscriptStore
 from langchain_core.messages import BaseMessage, SystemMessage
 
+from journal_agent.storage.vector_store import get_vector_store
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SECTION 2: MAIN PIPELINE
@@ -32,10 +34,11 @@ def main():
     # Set JOURNAL_AGENT_ROOT to override the root directory.
     session_store = TranscriptStore()
 
-    # seed_context includes system prompt and previously stored messages
-    seed_context: list[BaseMessage] = [SystemMessage(get_prompt("conversation"))]
-    stored_messages: list[BaseMessage] = session_store.retrieve_transcript()
-    seed_context.extend(stored_messages or [])
+    # create a vector store
+    vector_store = get_vector_store()
+
+    # get previously stored messages - this assumes we always save transcripts to a retrievable store  - will this always be the case?
+    seed_context: list[BaseMessage] = session_store.retrieve_transcript()
 
     session_id = str(uuid4())  # or loaded from prior session
     initial_state = {
@@ -46,9 +49,10 @@ def main():
         "status": STATUS_IDLE,
         "error_message": None,
     }
-    graph = build_journal_graph(registry=registry, session_store=session_store)
+    graph = build_journal_graph(registry=registry, session_store=session_store, vector_store=vector_store)
     try:
         graph.invoke(initial_state)
+
     except KeyboardInterrupt:
         # optional: flush pending turns
         session_store.store_cache(session_id)

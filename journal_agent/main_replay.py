@@ -35,7 +35,7 @@ from journal_agent.storage.exchange_store import TranscriptStore
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TRANSCRIPTS_DIR = REPO_ROOT / "data" / "transcripts"
+TRANSCRIPTS_DIR = REPO_ROOT / "data" / "test"
 REPLAY_DIR = REPO_ROOT / "data" / "replay"
 
 

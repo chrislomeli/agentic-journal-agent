@@ -23,7 +23,7 @@ class JournalState(TypedDict):
     transcript: Annotated[list[Exchange], add]
     threads: Annotated[list[ThreadSegment], add]
     classified_threads: Annotated[list[ThreadSegment], add]
-    classified_exchanges: list[ClassifiedExchange]  # todo DEPRECATEm THIS
     fragments: list[Fragment]  # new — written by classify, read by extract
+    retrieved_history: list[Fragment]  # lookup by user query
     status: Literal["idle", "processing", "completed", "error"]
     error_message: str | None

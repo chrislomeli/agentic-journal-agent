@@ -1,12 +1,14 @@
+import json
 import logging
 from collections.abc import Callable
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 
 from journal_agent.comms.human_chat import get_human_input
 from journal_agent.comms.llm_client import LLMClient
 from journal_agent.comms.llm_registry import LLMRegistry
+from journal_agent.configure.prompts import get_prompt
 from journal_agent.graph.node_tracer import node_trace
 from journal_agent.graph.nodes.classifier import (
     make_exchange_decomposer,
@@ -27,6 +29,7 @@ from journal_agent.graph.state import (
 )
 from journal_agent.model.session import Role
 from journal_agent.storage.exchange_store import TranscriptStore
+from journal_agent.storage.vector_store import get_vector_store, VectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -66,21 +69,64 @@ def make_get_user_input(session_store: TranscriptStore) -> Callable[..., dict]:
     return get_user_input
 
 
+from langchain_core.messages import HumanMessage
+
+
+def make_retrieve_history(vector_store: VectorStore) -> Callable[..., dict]:
+    @node_trace("get_ai_response")
+    def retrieve_history(state: JournalState) -> dict:
+        # Find the most recent HumanMessage, not just the last message.
+        # Robust to future graph wiring that may interleave AI/tool messages.
+        query_msg = next(
+            (m for m in reversed(state["session_messages"]) if isinstance(m, HumanMessage)),
+            None,
+        )
+        if query_msg is None:
+            return {
+                "retrieved_history": []}  # nothing to query against
+
+        history = vector_store.search_fragments(query_msg.content, max_distance=1.3, top_k=5)
+        return {"retrieved_history": history}
+
+    return retrieve_history
+
+
 def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore) -> Callable[..., dict]:
     @node_trace("get_ai_response")
     def get_ai_response(state: JournalState) -> dict:
         try:
-            messages = state["seed_context"] + state["session_messages"]
-            response = llm.chat(messages)  # model answers using context
+            # Build the system message with retrieved context baked in
+            system_prompt = get_prompt("conversation")
+            fragments = state["retrieved_history"]
+            system_content = (system_prompt
+                              + "\nPREVIOUS CONVERSATIONS: "
+                              + "\n\t" + json.dumps([{"content": f.content,"tag": [t.tag for t in f.tags]} for f in fragments]))
+            system = SystemMessage(system_content)
+
+            # construct the  prompt messages
+            messages = state["seed_context"]     # messages seeded prior to the graph
+            session = state["session_messages"]  # messages in this session
+            messages.extend(session)
+
+            # get the llm response
+            client = llm.get_client()
+            response = client.invoke([system] + messages)
+            
+            # model answers using context
             content = (
                 response.content if isinstance(response.content, str) else str(response.content)
             )
+
+            # store the whole exchange
             exchange = session_store.on_ai_turn(
                 session_id=state["session_id"],
                 role=Role.AI,
                 content=content,
             )
             print(content)
+
+
+            # update the transcript with this exchange
             return {
                 "session_messages": [AIMessage(content=content)],
                 "transcript" : [exchange],
@@ -106,7 +152,7 @@ def route_on_user_input(state: JournalState) -> str:
         return END
     elif state["status"] == STATUS_COMPLETED:
         return "save_transcript"
-    return "get_ai_response"
+    return "retrieve_history"
 
 
 def route_on_ai_response(state: JournalState) -> str:
@@ -125,6 +171,7 @@ def route_on_ai_response(state: JournalState) -> str:
 def build_journal_graph(
     registry: LLMRegistry,
     session_store: TranscriptStore,
+    vector_store: VectorStore
 ):
     """Build and compile the journal conversation graph.
 
@@ -148,6 +195,7 @@ def build_journal_graph(
     # Conversation loop nodes
     builder.add_node("get_user_input", make_get_user_input(session_store=session_store))
     builder.add_node("get_ai_response", make_get_ai_response(llm=conversation_llm, session_store=session_store))
+    builder.add_node("retrieve_history", make_retrieve_history(vector_store=vector_store))
 
     # End-of-session classification pipeline (decomposed: 3 LLM stages)
     builder.add_node("exchange_decomposer", make_exchange_decomposer(llm=classifier_llm))
@@ -166,6 +214,7 @@ def build_journal_graph(
     builder.add_conditional_edges("get_ai_response", route_on_ai_response)
 
     # Linear end-of-session pipeline
+    builder.add_edge("retrieve_history", "get_ai_response")
     builder.add_edge("save_transcript", "exchange_decomposer")
     builder.add_edge("exchange_decomposer", "save_threads")
     builder.add_edge("save_threads", "thread_classifier")
