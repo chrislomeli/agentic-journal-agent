@@ -97,6 +97,8 @@ def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore) -> Call
     @node_trace("get_ai_response")
     def get_ai_response(state: JournalState) -> dict:
         try:
+
+
             # Build the system message with retrieved context baked in
             messages = context_builder.get_context("conversation", state)
 

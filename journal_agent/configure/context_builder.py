@@ -10,7 +10,7 @@ from journal_agent.model.session import Fragment
 
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.DEBUG)
 
 class ContextBuildError(Exception):
     """Base exception for context-building failures."""
@@ -103,11 +103,11 @@ class ContextBuilder:
             raise ContextTooLargeError(int(count_all_tokens), int(effective_max))
 
         # Construct the System message
-        system_content = f"<instructions>{prompt}</instructions>"
+        system_content = f"<instructions>\n{prompt}\n</instructions>"
         logger.debug(f"System context: \n{system_content}")
 
         if retrieved_context:
-            rc =  f"\n\n<retrieved_context>{retrieved_context}</retrieved_context>"
+            rc =  f"\n\n<retrieved_context>\n{retrieved_context}\n</retrieved_context>"
             logger.debug(f"Retrieved Context: \n{rc}")
             system_content += rc
 
