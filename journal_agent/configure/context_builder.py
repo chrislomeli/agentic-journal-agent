@@ -1,4 +1,5 @@
 import json
+import logging
 
 import tiktoken
 from langchain_core.messages import BaseMessage, SystemMessage
@@ -8,9 +9,7 @@ from journal_agent.graph.state import JournalState
 from journal_agent.model.session import Fragment
 
 
-# TODO: adopt this exception-hierarchy pattern project-wide. For now only
-# ContextBuilder uses it — calling graph nodes should catch ContextBuildError
-# and translate into state["error"] so conditional edges can route to recovery.
+logger = logging.getLogger(__name__)
 
 
 class ContextBuildError(Exception):
@@ -77,6 +76,7 @@ class ContextBuilder:
             retrieved_context = ""
             count_all_tokens -= count_retrieved_context
             overage_tokens = max(count_all_tokens - effective_max, 0)
+            logger.debug(f"Removing retrieved context reduced overage tokes to {overage_tokens}")
 
         # truncate recent messages next
         if overage_tokens > 0:
@@ -84,6 +84,7 @@ class ContextBuilder:
                 recent_messages = []
                 count_all_tokens -= count_recent_tokens
                 overage_tokens = max(count_all_tokens - effective_max, 0)
+                logger.debug(f"Removing recent_messages reduced overage tokes to {overage_tokens}")
             else:
                 while overage_tokens > 0 and recent_messages:
                     removed = recent_messages.pop(0)
@@ -94,17 +95,36 @@ class ContextBuilder:
                 removed = session_messages.pop(0)
                 overage_tokens -= self.count_message_tokens([removed])
 
+            logger.debug(f"Removing session_messages reduced overage tokens to {overage_tokens}")
+
         # if we've pruned everything we can and are still over, bail
         if overage_tokens > 0:
+            logger.debug(f"After removing session_messages we are still {overage_tokens} tokens too big - throw an exception")
             raise ContextTooLargeError(int(count_all_tokens), int(effective_max))
 
         # Construct the System message
         system_content = f"<instructions>{prompt}</instructions>"
+        logger.debug(f"System context: \n{system_content}")
+
         if retrieved_context:
-            system_content += f"\n\n<retrieved_context>{retrieved_context}</retrieved_context>"
+            rc =  f"\n\n<retrieved_context>{retrieved_context}</retrieved_context>"
+            logger.debug(f"Retrieved Context: \n{rc}")
+            system_content += rc
+
         system_message = SystemMessage(
             content=system_content
         )
+
+        # log everything
+        logger.debug(
+            "Recent Messages: %s",
+            [m.model_dump_json() for m in recent_messages]
+        )
+        logger.debug(
+            "Session Messages: %s",
+            [m.model_dump_json() for m in session_messages]
+        )
+
 
         # Construct all messages
         messages = [system_message] + recent_messages + session_messages

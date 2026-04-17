@@ -8,6 +8,7 @@ from langgraph.graph import END, START, StateGraph
 from journal_agent.comms.human_chat import get_human_input
 from journal_agent.comms.llm_client import LLMClient
 from journal_agent.comms.llm_registry import LLMRegistry
+from journal_agent.configure.context_builder import ContextBuilder, ContextBuildError
 from journal_agent.configure.prompts import get_prompt
 from journal_agent.graph.node_tracer import node_trace
 from journal_agent.graph.nodes.classifier import (
@@ -32,6 +33,7 @@ from journal_agent.storage.exchange_store import TranscriptStore
 from journal_agent.storage.vector_store import get_vector_store, VectorStore
 
 logger = logging.getLogger(__name__)
+context_builder = ContextBuilder()
 
 # ── Graph builder ─────────────────────────────────────────────────────────────
 
@@ -96,20 +98,11 @@ def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore) -> Call
     def get_ai_response(state: JournalState) -> dict:
         try:
             # Build the system message with retrieved context baked in
-            system_prompt = get_prompt("conversation")
-            fragments = state["retrieved_history"]
-            system_content = (
-                f"{system_prompt}\n\nPREVIOUS CONVERSATIONS:\n\t"
-                + json.dumps([{"content": f.content, "tag": [t.tag for t in f.tags]} for f in fragments])
-            )
-            system = [SystemMessage(system_content)]
-
-            # construct the  prompt messages
-            messages = state["seed_context"] + state["session_messages"]
+            messages = context_builder.get_context("conversation", state)
 
             # get the llm response
             client = llm.get_client()
-            response = client.invoke(system + messages)
+            response = client.invoke(messages)
 
             # model answers using context
             content = (
@@ -131,6 +124,9 @@ def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore) -> Call
                 "transcript" : [exchange],
                 "status": STATUS_PROCESSING,
             }
+        except ContextBuildError as e:
+            logger.warning("Context build failed: %s", e)
+            return {"status": STATUS_ERROR, "error_message": str(e)}
         except Exception as e:
             logger.exception("Failed to generate AI response")
             return {
