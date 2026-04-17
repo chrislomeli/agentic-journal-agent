@@ -52,10 +52,10 @@ ignore = [
 known-first-party = ["agents", "bridge", "config", "domains", "resources", "sensors", "tools", "transport", "world"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["commons", "conversation_engine"]
+packages = ["journal_agent"]
 
 [tool.pytest.ini_options]
-testpaths = ["conversation_engine/tests"]
+testpaths = ["journal_agent/tests"]
 python_files = ["test_*.py"]
 asyncio_mode = "auto"
 
