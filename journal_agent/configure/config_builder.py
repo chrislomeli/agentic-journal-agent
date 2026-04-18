@@ -14,53 +14,32 @@ import logging
 import os
 
 from journal_agent.configure.settings import (
+    LLM_ROLE_CONFIG,
     LLMLabel,
     LLMModel,
     LLMProvider,
     Settings,
     get_settings,
+    models,
 )
+
 
 DEFAULT_RECENT_MESSAGES_COUNT = 5
 DEFAULT_SESSION_MESSAGES_COUNT = 10
 DEFAULT_RETRIEVED_HISTORY_COUNT = 5
 DEFAULT_RETRIEVED_HISTORY_DISTANCE = 3
-
-models: dict[LLMLabel, LLMModel | None] = {
-    # OpenAI models
-    LLMLabel.GPT_MINI: LLMModel(
-        key_label="openai_api_key", provider=LLMProvider.OPENAI, model="gpt-4o-mini"
-    ),
-    LLMLabel.GPT_NANO: LLMModel(
-        key_label="openai_api_key", provider=LLMProvider.OPENAI, model="gpt-4o-mini"
-    ),
-    LLMLabel.GPT: LLMModel(key_label="openai_api_key", provider=LLMProvider.OPENAI, model="gpt-4o"),
-    # Anthropic models
-    LLMLabel.CLAUDE_SONNET: LLMModel(
-        key_label="anthropic_api_key", provider=LLMProvider.ANTHROPIC, model="claude-sonnet-4-6"
-    ),
-    LLMLabel.CLAUDE_OPUS: LLMModel(
-        key_label="anthropic_api_key", provider=LLMProvider.ANTHROPIC, model="claude-opus-4-6"
-    ),
-    LLMLabel.HAIKU: LLMModel(
-        key_label="anthropic_api_key", provider=LLMProvider.ANTHROPIC, model="claude-haiku-4-5"
-    ),
-    # Ollama models (local development)
-    LLMLabel.OLLAMA_LLAMA3: LLMModel(
-        key_label="ollama_base_url", provider=LLMProvider.OLLAMA, model="llama3.2:latest"
-    ),
-    # Stub (no LLM)
-    LLMLabel.STUB: None,
-}
-
-# ── Role → model label mapping ────────────────────────────────────────────
-# Each entry says: "for this role, use this model from the models dict."
-# If a role is absent here it falls back to the default ("conversation").
-LLM_ROLE_CONFIG: dict[str, LLMLabel] = {
-    "conversation": LLMLabel.OLLAMA_LLAMA3,
-    "classifier": LLMLabel.GPT,
-    "extractor": LLMLabel.GPT,
-}
+DEFAULT_RESPONSE_STYLE="structured with headers"
+DEFAULT_EXPLANATION_DEPTH="advanced — draw on academic and literary references naturally, the way an educated friend would in conversation, not as citations or lectures"
+DEFAULT_TONE="warm and familiar, encouraging but not patronizing — a trusted friend who happens to be well-read. Speak as a peer, not an authority"
+HUMAN_NAME="Chris"
+AI_NAME=None
+DEFAULT_LEARNING_STYLE="conceptual with examples — when exploring ideas, connect them to parallels in philosophy, literature, psychology, and history. Not to teach, but to enrich the conversation"
+DEFAULT_INTERESTS=["philosophy", "musicality", "creative writing", "artificial intelligence", "software architecture"]
+DEFAULT_PET_PEEVES= [
+    "Never provide toy or simplified designs — always show professional-grade patterns",
+    "Don't summarize or restate what I just said back to me — push the idea forward",
+    "Don't be a yes-man — disagree when you have a reason to",
+]
 
 
 def _mask_secret(value: str) -> str:

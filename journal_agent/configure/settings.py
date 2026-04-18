@@ -64,6 +64,45 @@ class Settings(BaseSettings):
     )
 
 
+
+# ── Available model definitions ────────────────────────────────────────────
+models: dict[LLMLabel, LLMModel | None] = {
+    # OpenAI models
+    LLMLabel.GPT_MINI: LLMModel(
+        key_label="openai_api_key", provider=LLMProvider.OPENAI, model="gpt-4o-mini"
+    ),
+    LLMLabel.GPT_NANO: LLMModel(
+        key_label="openai_api_key", provider=LLMProvider.OPENAI, model="gpt-4o-mini"
+    ),
+    LLMLabel.GPT: LLMModel(key_label="openai_api_key", provider=LLMProvider.OPENAI, model="gpt-4o"),
+    # Anthropic models
+    LLMLabel.CLAUDE_SONNET: LLMModel(
+        key_label="anthropic_api_key", provider=LLMProvider.ANTHROPIC, model="claude-sonnet-4-6"
+    ),
+    LLMLabel.CLAUDE_OPUS: LLMModel(
+        key_label="anthropic_api_key", provider=LLMProvider.ANTHROPIC, model="claude-opus-4-6"
+    ),
+    LLMLabel.HAIKU: LLMModel(
+        key_label="anthropic_api_key", provider=LLMProvider.ANTHROPIC, model="claude-haiku-4-5"
+    ),
+    # Ollama models (local development)
+    LLMLabel.OLLAMA_LLAMA3: LLMModel(
+        key_label="ollama_base_url", provider=LLMProvider.OLLAMA, model="llama3.2:latest"
+    ),
+    # Stub (no LLM)
+    LLMLabel.STUB: None,
+}
+
+# ── Role → model label mapping ────────────────────────────────────────────
+# Each entry says: "for this role, use this model from the models dict."
+# If a role is absent here it falls back to the default ("conversation").
+LLM_ROLE_CONFIG: dict[str, LLMLabel] = {
+    "conversation": LLMLabel.OLLAMA_LLAMA3,
+    "classifier": LLMLabel.GPT,
+    "extractor": LLMLabel.GPT,
+}
+
+
 @lru_cache
 def get_settings() -> Settings:
     """

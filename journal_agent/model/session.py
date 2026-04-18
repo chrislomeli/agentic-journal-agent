@@ -5,8 +5,20 @@ from enum import Enum, StrEnum
 
 from pydantic import BaseModel, Field
 
-from journal_agent.configure.config_builder import DEFAULT_RECENT_MESSAGES_COUNT, DEFAULT_SESSION_MESSAGES_COUNT, \
-    DEFAULT_RETRIEVED_HISTORY_COUNT, DEFAULT_RETRIEVED_HISTORY_DISTANCE
+from journal_agent.configure.config_builder import (
+    DEFAULT_RECENT_MESSAGES_COUNT,
+    DEFAULT_SESSION_MESSAGES_COUNT,
+    DEFAULT_RETRIEVED_HISTORY_COUNT,
+    DEFAULT_RETRIEVED_HISTORY_DISTANCE,
+    DEFAULT_RESPONSE_STYLE,
+    DEFAULT_EXPLANATION_DEPTH,
+    DEFAULT_TONE,
+    DEFAULT_LEARNING_STYLE,
+    DEFAULT_INTERESTS,
+    DEFAULT_PET_PEEVES,
+    HUMAN_NAME,
+    AI_NAME,
+)
 
 
 class Status(StrEnum):
@@ -19,6 +31,7 @@ class Status(StrEnum):
     CLASSIFIED_THREADS_SAVED = "classified_threads_saved"
     FRAGMENTS_SAVED = "fragments_saved"
     ERROR = "error"
+
 
 class Role(Enum):
     HUMAN = "human"
@@ -158,3 +171,28 @@ class ContextSpecification(BaseModel):
     last_k_recent_messages: int = Field(default=DEFAULT_SESSION_MESSAGES_COUNT, ge=0, le=20)
     top_k_retrieved_history: int = Field(default=DEFAULT_RETRIEVED_HISTORY_COUNT, ge=0, le=10)
     distance_retrieved_history: int = Field(default=DEFAULT_RETRIEVED_HISTORY_DISTANCE, ge=0, le=10)
+
+
+class UserProfile(BaseModel):
+    # Communication
+    response_style: str | None = Field(default=DEFAULT_RESPONSE_STYLE)  # free-text, LLM-generated summary
+    explanation_depth: str | None = Field(default=DEFAULT_EXPLANATION_DEPTH) # "expert" | "intermediate" | "beginner"
+    tone: str| None  = Field(default=DEFAULT_TONE)  # free-text
+
+    # Domain
+    interests: list[str]   = Field(default_factory=lambda: list(DEFAULT_INTERESTS)) # accumulated across sessions
+    active_projects: list[str] = Field(default_factory=list)
+    recurring_themes: list[str] = Field(default_factory=list)
+
+    # Interaction
+    decision_style: str| None   = Field(default=None)  # free-text
+    learning_style: str| None  = Field(default=DEFAULT_LEARNING_STYLE) # free-text
+    pet_peeves: list[str] = Field(default_factory=lambda: list(DEFAULT_PET_PEEVES))
+
+    # Identity
+    human_name: str = Field(default=HUMAN_NAME)
+    ai_name: str | None = Field(default=AI_NAME)
+
+    # Meta
+    updated_at: datetime = Field(default_factory=datetime.now)
+    session_count: int = Field(default=0)  # how many sessions contributed
