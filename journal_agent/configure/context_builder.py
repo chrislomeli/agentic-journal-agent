@@ -8,7 +8,7 @@ from journal_agent.configure.prompts import get_prompt, PromptKey
 from journal_agent.model.session import Fragment, ContextSpecification
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class ContextBuildError(Exception):

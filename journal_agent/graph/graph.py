@@ -1,20 +1,18 @@
-import json
 import logging
 from collections.abc import Callable
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage
 from langgraph.graph import END, START, StateGraph
 
 from journal_agent.comms.human_chat import get_human_input
 from journal_agent.comms.llm_client import LLMClient
 from journal_agent.comms.llm_registry import LLMRegistry
 from journal_agent.configure.context_builder import ContextBuilder, ContextBuildError
-from journal_agent.configure.prompts import get_prompt, PromptKey
 from journal_agent.graph.node_tracer import node_trace
 from journal_agent.graph.nodes.classifier import (
     make_exchange_decomposer,
     make_thread_classifier,
-    make_thread_fragment_extractor,
+    make_thread_fragment_extractor, make_intent_classifier,
 )
 from journal_agent.graph.nodes.save_data import (
     make_save_transcript,
@@ -23,14 +21,11 @@ from journal_agent.graph.nodes.save_data import (
     make_save_fragments_to_json, make_save_fragments_to_vectordb,
 )
 from journal_agent.graph.state import (
-    STATUS_COMPLETED,
-    STATUS_ERROR,
-    STATUS_PROCESSING,
     JournalState,
 )
-from journal_agent.model.session import Role, ContextSpecification
+from journal_agent.model.session import Role, Status
 from journal_agent.storage.exchange_store import TranscriptStore
-from journal_agent.storage.vector_store import get_vector_store, VectorStore
+from journal_agent.storage.vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
 context_builder = ContextBuilder()
@@ -47,7 +42,7 @@ def make_get_user_input(session_store: TranscriptStore) -> Callable[..., dict]:
             # Prompt user for input
             user_input = get_human_input()
             if user_input == "/quit":
-                return {"status": STATUS_COMPLETED}
+                return {"status": Status.COMPLETED}
 
             # add input to session store
             session_store.on_human_turn(
@@ -57,14 +52,14 @@ def make_get_user_input(session_store: TranscriptStore) -> Callable[..., dict]:
             # update status to processing
             return {
                 "session_messages": [HumanMessage(content=user_input)],
-                "status": STATUS_PROCESSING,
+                "status": Status.PROCESSING,
             }
         except KeyboardInterrupt:
-            return {"status": STATUS_COMPLETED}
+            return {"status": Status.COMPLETED}
         except Exception as e:
             logger.exception("Failed to read user input")
             return {
-                "status": STATUS_ERROR,
+                "status": Status.ERROR,
                 "error_message": str(e),
             }
 
@@ -87,7 +82,12 @@ def make_retrieve_history(vector_store: VectorStore) -> Callable[..., dict]:
             return {
                 "retrieved_history": []}  # nothing to query against
 
-        matches = vector_store.search_fragments(query_msg.content, min_relevance=0.3, top_k=5)
+        # sprinkle in any tags from the intent classifier
+        query = query_msg.content +  " tags: " + ",".join(state["context_specification"].tags)
+
+        # perform the search
+        top_k = state["context_specification"].top_k_retrieved_history or 5
+        matches = vector_store.search_fragments(query, min_relevance=0.3, top_k=top_k)
         return {"retrieved_history": [fragment for fragment, _ in matches]}
 
     return retrieve_history
@@ -126,36 +126,66 @@ def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore) -> Call
             return {
                 "session_messages": [AIMessage(content=content)],
                 "transcript": [exchange],
-                "status": STATUS_PROCESSING,
+                "status": Status.PROCESSING,
             }
         except ContextBuildError as e:
             logger.warning("Context build failed: %s", e)
-            return {"status": STATUS_ERROR, "error_message": str(e)}
+            return {"status": Status.ERROR, "error_message": str(e)}
         except Exception as e:
             logger.exception("Failed to generate AI response")
             return {
-                "status": STATUS_ERROR,
+                "status": Status.ERROR,
                 "error_message": str(e),
             }
 
     return get_ai_response
 
+def goto(node: str, on_completion: str = END) -> Callable[..., str]:
+    def goto_node(state: JournalState) -> str:
+        if state["status"] == Status.ERROR:
+            logger.warning(
+                "Routing to end after user input error (session_id=%s, error_message=%s)",
+                state.get("session_id", "unknown"),
+                state.get("error_message"),
+            )
+            return END
+        elif state["status"] == Status.COMPLETED:
+            return on_completion
+        return node
+
+    return goto_node
+
 
 def route_on_user_input(state: JournalState) -> str:
-    if state["status"] == STATUS_ERROR:
+    if state["status"] == Status.ERROR:
         logger.warning(
             "Routing to end after user input error (session_id=%s, error_message=%s)",
             state.get("session_id", "unknown"),
             state.get("error_message"),
         )
         return END
-    elif state["status"] == STATUS_COMPLETED:
+    elif state["status"] == Status.COMPLETED:
         return "save_transcript"
-    return "retrieve_history"
+    return "intent_classifier"
 
+
+def route_on_intent(state: JournalState) -> str:
+    if state["status"] == Status.ERROR:
+        logger.warning(
+            "Routing to end after user input error (session_id=%s, error_message=%s)",
+            state.get("session_id", "unknown"),
+            state.get("error_message"),
+        )
+        return END
+    elif state["status"] == Status.COMPLETED:
+        return "save_transcript"
+    elif state["context_specification"].top_k_retrieved_history > 0:
+        return "retrieve_history"
+    else:
+        return "get_ai_response"
 
 def route_on_ai_response(state: JournalState) -> str:
-    if state["status"] == STATUS_ERROR:
+    if state["status"] == Status.ERROR:
         logger.warning(
             "Routing to end after AI response error (session_id=%s, error_message=%s)",
             state.get("session_id", "unknown"),
@@ -195,11 +225,12 @@ def build_journal_graph(
     builder.add_node("get_ai_response", make_get_ai_response(llm=conversation_llm, session_store=session_store))
     builder.add_node("retrieve_history", make_retrieve_history(vector_store=vector_store))
 
-    # End-of-session classification pipeline (decomposed: 3 LLM stages)
+    # Classification pipeline (decomposed: 3 LLM stages)
     builder.add_node("exchange_decomposer", make_exchange_decomposer(llm=classifier_llm))
     builder.add_node("thread_classifier", make_thread_classifier(llm=classifier_llm))
     builder.add_node("thread_fragment_extractor", make_thread_fragment_extractor(llm=extractor_llm))
     builder.add_node("save_fragments_to_vectordb", make_save_fragments_to_vectordb(vector_store=vector_store))
+    builder.add_node("intent_classifier", make_intent_classifier(llm=classifier_llm))
 
     # Persistence nodes (one per pipeline artifact)
     builder.add_node("save_transcript", make_save_transcript())
@@ -211,16 +242,17 @@ def build_journal_graph(
     builder.add_edge(START, "get_user_input")
     builder.add_conditional_edges("get_user_input", route_on_user_input)
     builder.add_conditional_edges("get_ai_response", route_on_ai_response)
+    builder.add_conditional_edges("intent_classifier", route_on_intent)
+
+    builder.add_conditional_edges("retrieve_history", goto("get_ai_response", on_completion="save_transcript"))
+    builder.add_conditional_edges("exchange_decomposer", goto("save_threads", on_completion="save_transcript"))
+    builder.add_conditional_edges("thread_classifier", goto("save_classified_threads", on_completion="save_transcript"))
 
     # Linear end-of-session pipeline
-    builder.add_edge("retrieve_history", "get_ai_response")
-    builder.add_edge("save_transcript", "exchange_decomposer")
-    builder.add_edge("exchange_decomposer", "save_threads")
-    builder.add_edge("save_threads", "thread_classifier")
-    builder.add_edge("thread_classifier", "save_classified_threads")
-    builder.add_edge("save_classified_threads", "thread_fragment_extractor")
-    builder.add_edge("thread_fragment_extractor", "save_fragments_to_json")
-    builder.add_edge("save_fragments_to_json", "save_fragments_to_vectordb")
+    builder.add_conditional_edges("save_transcript", goto("exchange_decomposer"))
+    builder.add_conditional_edges("save_classified_threads", goto("thread_fragment_extractor"))
+    builder.add_conditional_edges("thread_fragment_extractor", goto("save_fragments_to_json"))
+    builder.add_conditional_edges("save_fragments_to_json", goto("save_fragments_to_vectordb"))
     builder.add_edge("save_fragments_to_vectordb", END)
     compiled = builder.compile()
     return compiled

@@ -1,5 +1,5 @@
 """Entry point for the interactive journal agent."""
-
+from typing import Literal
 from uuid import uuid4
 
 from langchain_core.messages import BaseMessage
@@ -7,7 +7,8 @@ from langchain_core.messages import BaseMessage
 from journal_agent.comms.llm_registry import build_llm_registry
 from journal_agent.configure.config_builder import LLM_ROLE_CONFIG, configure_environment, models
 from journal_agent.graph.graph import build_journal_graph
-from journal_agent.graph.state import STATUS_IDLE
+from journal_agent.graph.state import  JournalState
+from journal_agent.model.session import ContextSpecification, Status
 from journal_agent.storage.exchange_store import TranscriptStore
 from journal_agent.storage.vector_store import get_vector_store
 
@@ -40,13 +41,19 @@ def main():
     seed_context: list[BaseMessage] = session_store.retrieve_transcript()
 
     session_id = str(uuid4())  # or loaded from prior session
-    initial_state = {
-        "session_id": session_id,
-        "seed_context": seed_context,
-        "session_messages": [],
-        "status": STATUS_IDLE,
-        "error_message": None,
-    }
+    initial_state = JournalState(
+        session_id=session_id,
+        recent_messages=seed_context,
+        session_messages=[],
+        transcript=[],
+        threads=[],
+        classified_threads=[],
+        fragments=[],
+        retrieved_history=[],
+        context_specification=ContextSpecification(),  # nodes that need it run after intent_classifier sets it
+        status=Status.IDLE,
+        error_message=None,
+    )
     graph = build_journal_graph(registry=registry, session_store=session_store, vector_store=vector_store)
     try:
         graph.invoke(initial_state)

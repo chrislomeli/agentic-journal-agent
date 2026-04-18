@@ -4,9 +4,9 @@ from functools import wraps
 from time import perf_counter
 
 from journal_agent.graph.state import (
-    STATUS_ERROR,
     JournalState,
 )
+from journal_agent.model.session import Status
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ def node_trace(node_name: str | None = None):
                 result = func(state)
                 elapsed = perf_counter() - start
                 status = result.get("status") if isinstance(result, dict) else None
-                if status == STATUS_ERROR:
+                if status == Status.ERROR:
                     logger.warning(
                         "Node %s completed with error in %.3fs (session_id=%s, status=%s, error_message=%s)",
                         name,

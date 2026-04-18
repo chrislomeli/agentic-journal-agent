@@ -3,7 +3,6 @@ from collections.abc import Callable
 from datetime import datetime
 
 from langchain_core.messages import SystemMessage, HumanMessage
-from typing_extensions import deprecated
 
 from journal_agent.comms.llm_client import LLMClient
 from journal_agent.configure.context_builder import ContextBuilder
@@ -11,10 +10,9 @@ from journal_agent.configure.prompts import get_prompt, taxonomy_json, PromptKey
 from journal_agent.configure.score_card import resolve_scorecard_to_specification
 from journal_agent.graph.node_tracer import node_trace
 from journal_agent.graph.state import (
-    STATUS_ERROR,
     JournalState, )
-from journal_agent.model.session import ClassifiedExchangeList, FragmentList, \
-    ThreadSegmentList, ExchangeClassificationRequest, ThreadSegment, Exchange, \
+from journal_agent.model.session import Status
+from journal_agent.model.session import ThreadSegmentList, ExchangeClassificationRequest, ThreadSegment, Exchange, \
     ThreadClassificationResponse, ExpandedThreadSegment, Fragment, \
     FragmentDraftList, ScoreCard, ContextSpecification
 
@@ -68,7 +66,7 @@ def make_exchange_decomposer(llm: LLMClient) -> Callable[..., dict]:
         except Exception as e:
             logger.exception("Failed to classify turns")
             return {
-                "status": STATUS_ERROR,
+                "status": Status.ERROR,
                 "error_message": str(e),
             }
 
@@ -107,7 +105,7 @@ def make_thread_classifier(llm: LLMClient) -> Callable[..., dict]:
         except Exception as e:
             logger.exception("Failed to classify turns")
             return {
-                "status": STATUS_ERROR,
+                "status": Status.ERROR,
                 "error_message": str(e),
             }
 
@@ -149,7 +147,7 @@ def make_thread_fragment_extractor(llm: LLMClient) -> Callable[..., dict]:
         except Exception as e:
             logger.exception("Failed to extract fragments")
             return {
-                "status": STATUS_ERROR,
+                "status": Status.ERROR,
                 "error_message": str(e),
             }
 
@@ -159,9 +157,7 @@ def make_thread_fragment_extractor(llm: LLMClient) -> Callable[..., dict]:
 def make_intent_classifier(llm: LLMClient) -> Callable[..., dict]:
     @node_trace("retrieve_history")
     def intent_classifier(state: JournalState) -> dict:
-
         try:
-
             # preconditions
             if len(state["session_messages"]) < 1:
                 raise  Exception("No session messages found while asking for AI response")
@@ -190,7 +186,7 @@ def make_intent_classifier(llm: LLMClient) -> Callable[..., dict]:
         except Exception as e:
             logger.exception("Failed to classify turns")
             return {
-                "status": STATUS_ERROR,
+                "status": Status.ERROR,
                 "error_message": str(e),
             }
 

@@ -9,6 +9,7 @@ source of truth for valid keys.
 
 from __future__ import annotations
 
+
 from enum import Enum
 
 from . import (
@@ -23,19 +24,9 @@ from . import (
 )
 from ._helpers import TAXONOMY, taxonomy_json
 
-__all__ = ["PromptKey", "get_prompt", "taxonomy_json", "TAXONOMY"]
+__all__ = ["get_prompt", "taxonomy_json", "TAXONOMY"]
 
-
-class PromptKey(Enum):
-    INTENT_CLASSIFIER = "intent_classifier"
-    CONVERSATION = "conversation"
-    SOCRATIC = "socratic"
-    GUIDANCE = "guidance"
-    DECOMPOSER = "decomposer"
-    THREAD_CLASSIFIER = "thread_classifier"
-    EXCHANGE_CLASSIFIER = "exchange_classifier"
-    FRAGMENT_EXTRACTOR = "extractor"
-
+from ...model.session import PromptKey
 
 _REGISTRY: dict[str, str] = {
     PromptKey.INTENT_CLASSIFIER.value:   intent_classifier.TEMPLATE,

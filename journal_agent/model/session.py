@@ -1,14 +1,23 @@
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 
 from pydantic import BaseModel, Field
 
 from journal_agent.configure.config_builder import DEFAULT_RECENT_MESSAGES_COUNT, DEFAULT_SESSION_MESSAGES_COUNT, \
     DEFAULT_RETRIEVED_HISTORY_COUNT
-from journal_agent.configure.prompts import PromptKey
 
+class Status(StrEnum):
+    IDLE = "idle"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    TRANSCRIPT_SAVED = "transcript_saved"
+    EXCHANGES_SAVED = "exchanges_saved"
+    THREADS_SAVED = "threads_saved"
+    CLASSIFIED_THREADS_SAVED = "classified_threads_saved"
+    FRAGMENTS_SAVED = "fragments_saved"
+    ERROR = "error"
 
 class Role(Enum):
     HUMAN = "human"
@@ -130,8 +139,20 @@ class ScoreCard(BaseModel):
     domains: list[Domain]  # scores across all 8 domains
 
 
+class PromptKey(Enum):
+    INTENT_CLASSIFIER = "intent_classifier"
+    CONVERSATION = "conversation"
+    SOCRATIC = "socratic"
+    GUIDANCE = "guidance"
+    DECOMPOSER = "decomposer"
+    THREAD_CLASSIFIER = "thread_classifier"
+    EXCHANGE_CLASSIFIER = "exchange_classifier"
+    FRAGMENT_EXTRACTOR = "extractor"
+
+
 class ContextSpecification(BaseModel):
-    prompt_key: PromptKey
+    prompt_key: PromptKey = Field(default=PromptKey.CONVERSATION)
+    tags: list[str] = Field(default=[])
     last_k_session_messages: int = Field(default=DEFAULT_RECENT_MESSAGES_COUNT, ge=0, le=20)
     last_k_recent_messages: int = Field(default=DEFAULT_SESSION_MESSAGES_COUNT, ge=0, le=20)
     top_k_retrieved_history: int = Field(default=DEFAULT_RETRIEVED_HISTORY_COUNT, ge=0, le=10)

@@ -5,14 +5,10 @@ from typing_extensions import deprecated
 
 from journal_agent.graph.node_tracer import node_trace
 from journal_agent.graph.state import (
-    STATUS_ERROR,
     JournalState,
-    STATUS_FRAGMENTS_SAVED,
-    STATUS_EXCHANGES_SAVED,
-    STATUS_TRANSCRIPT_SAVED,
-    STATUS_THREADS_SAVED,
-    STATUS_CLASSIFIED_THREADS_SAVED,
+
 )
+from journal_agent.model.session import Status
 from journal_agent.storage.storage import JsonStore
 from journal_agent.storage.vector_store import VectorStore
 
@@ -35,13 +31,13 @@ def make_save_transcript() -> Callable[..., dict]:
             store.save_session(session_id, content)
 
             return {
-                "status": STATUS_TRANSCRIPT_SAVED
+                "status": Status.TRANSCRIPT_SAVED
             }
 
         except Exception as e:
             logger.exception("Failed to extract fragments")
             return {
-                "status": STATUS_ERROR,
+                "status": Status.ERROR,
                 "error_message": str(e),
             }
 
@@ -66,13 +62,13 @@ def make_save_exchanges() -> Callable[..., dict]:
             store.save_session(session_id, content)
 
             return {
-                "status": STATUS_EXCHANGES_SAVED
+                "status": Status.EXCHANGES_SAVED
             }
 
         except Exception as e:
             logger.exception("Failed to extract fragments")
             return {
-                "status": STATUS_ERROR,
+                "status": Status.ERROR,
                 "error_message": str(e),
             }
 
@@ -90,12 +86,12 @@ def make_save_threads() -> Callable[..., dict]:
             store.save_session(session_id, content)
 
             return {
-                "status": STATUS_THREADS_SAVED
+                "status": Status.THREADS_SAVED
             }
         except Exception as e:
             logger.exception("Failed to save threads")
             return {
-                "status": STATUS_ERROR,
+                "status": Status.ERROR,
                 "error_message": str(e),
             }
 
@@ -113,12 +109,12 @@ def make_save_classified_threads() -> Callable[..., dict]:
             store.save_session(session_id, content)
 
             return {
-                "status": STATUS_CLASSIFIED_THREADS_SAVED
+                "status": Status.CLASSIFIED_THREADS_SAVED
             }
         except Exception as e:
             logger.exception("Failed to save classified threads")
             return {
-                "status": STATUS_ERROR,
+                "status": Status.ERROR,
                 "error_message": str(e),
             }
 
@@ -142,13 +138,13 @@ def make_save_fragments_to_json() -> Callable[..., dict]:
             store.save_session(session_id, content)
 
             return {
-                "status": STATUS_FRAGMENTS_SAVED
+                "status": Status.FRAGMENTS_SAVED
             }
 
         except Exception as e:
             logger.exception("Failed to extract fragments")
             return {
-                "status": STATUS_ERROR,
+                "status": Status.ERROR,
                 "error_message": str(e),
             }
 
@@ -170,13 +166,13 @@ def make_save_fragments_to_vectordb(vector_store: VectorStore) -> Callable[..., 
             vector_store.add_to_chroma_from_fragments(content)
 
             return {
-                "status": STATUS_FRAGMENTS_SAVED
+                "status": Status.FRAGMENTS_SAVED
             }
 
         except Exception as e:
             logger.exception("Failed to extract fragments")
             return {
-                "status": STATUS_ERROR,
+                "status": Status.ERROR,
                 "error_message": str(e),
             }
 

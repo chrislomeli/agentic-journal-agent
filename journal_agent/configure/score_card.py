@@ -40,18 +40,21 @@ INTENT_TO_SPEC: dict[Intent, ContextSpecification] = {
     # SEEKING_HELP, CURIOUS → _DEFAULT_SPEC via .get() fallback below
 }
 
-
 def resolve_scorecard_to_specification(card: ScoreCard) -> ContextSpecification:
     """Map a ScoreCard to the ContextSpecification that will drive context assembly.
 
     Thresholds each dimension into a boolean triple, looks up the Intent,
     then returns the spec associated with that intent (or the default).
     """
+    domains = [d.tag for d in card.domains if d.score  > 0.5]
+
     q  = card.question_score     > THRESHOLDS["question"]
     fp = card.first_person_score > THRESHOLDS["first_person"]
     t  = card.task_score         > THRESHOLDS["task"]
     intent = Intent((q, fp, t))
-    return INTENT_TO_SPEC.get(intent, _DEFAULT_SPEC)
+    spec =  INTENT_TO_SPEC.get(intent, _DEFAULT_SPEC)
+    spec.tags = domains
+    return spec
 
 
 

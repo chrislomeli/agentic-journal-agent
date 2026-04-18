@@ -1,20 +1,10 @@
-from typing import Annotated, Literal, TypedDict
 from operator import add
+from typing import Annotated, TypedDict
+
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 
-from journal_agent.model.session import ClassifiedExchange, Fragment, Exchange, ThreadSegment, ExpandedThreadSegment, \
-    ScoreCard, ContextSpecification
-
-STATUS_IDLE = "idle"
-STATUS_PROCESSING = "processing"
-STATUS_COMPLETED = "completed"
-STATUS_TRANSCRIPT_SAVED = "transcript_saved"
-STATUS_EXCHANGES_SAVED = "exchanges_saved"   # deprecated — old one-shot pipeline
-STATUS_THREADS_SAVED = "threads_saved"
-STATUS_CLASSIFIED_THREADS_SAVED = "classified_threads_saved"
-STATUS_FRAGMENTS_SAVED = "fragments_saved"
-STATUS_ERROR = "error"
+from journal_agent.model.session import Fragment, Exchange, ThreadSegment, ContextSpecification, Status
 
 
 class JournalState(TypedDict):
@@ -27,5 +17,5 @@ class JournalState(TypedDict):
     fragments: list[Fragment]  # new — written by classify, read by extract
     retrieved_history: list[Fragment]  # lookup by user query
     context_specification: ContextSpecification  # current instruction from intent classification
-    status: Literal["idle", "processing", "completed", "error"]
+    status: Status
     error_message: str | None
