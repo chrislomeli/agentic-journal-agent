@@ -242,9 +242,18 @@ class TestScoreCard:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class TestPromptKeyRegistry:
+    # Keys whose templates require runtime variables. Listed by enum value so
+    # aliases (e.g. PROFILE_SCANNER → "profile_classifier") collapse correctly.
+    _PARAMETRIC_KEYS: dict[str, dict] = {
+        PromptKey.PROFILE_SCANNER.value: {
+            "current_profile": UserProfile().model_dump_json(indent=2),
+        },
+    }
+
     def test_every_prompt_key_resolves_to_a_non_empty_template(self):
         for key in PromptKey:
-            template = get_prompt(key)
+            kwargs = self._PARAMETRIC_KEYS.get(key.value, {})
+            template = get_prompt(key, **kwargs)
             assert isinstance(template, str)
             assert len(template) > 0, f"Empty template for {key}"
 
@@ -255,6 +264,18 @@ class TestPromptKeyRegistry:
     def test_get_prompt_raises_for_unknown_key(self):
         with pytest.raises(KeyError):
             get_prompt("no_such_key_ever")
+
+    def test_parametric_prompt_renders_runtime_vars(self):
+        profile = UserProfile(human_name="Marker-Alice")
+        rendered = get_prompt(
+            PromptKey.PROFILE_SCANNER,
+            current_profile=profile.model_dump_json(indent=2),
+        )
+        assert "Marker-Alice" in rendered
+
+    def test_parametric_prompt_missing_var_raises(self):
+        with pytest.raises(KeyError):
+            get_prompt(PromptKey.PROFILE_SCANNER)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

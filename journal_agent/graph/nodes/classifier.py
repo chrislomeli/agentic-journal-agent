@@ -28,7 +28,7 @@ from journal_agent.configure.score_card import resolve_scorecard_to_specificatio
 from journal_agent.graph.node_tracer import node_trace
 from journal_agent.graph.state import (
     JournalState, )
-from journal_agent.model.session import Status
+from journal_agent.model.session import Status, UserProfile
 from journal_agent.model.session import ThreadSegmentList, ExchangeClassificationRequest, ThreadSegment, Exchange, \
     ThreadClassificationResponse, ExpandedThreadSegment, Fragment, \
     FragmentDraftList, ScoreCard, ContextSpecification
@@ -227,24 +227,32 @@ def make_intent_classifier(llm: LLMClient, context_builder: ContextBuilder | Non
 def make_profile_classifier(llm: LLMClient, context_builder: ContextBuilder | None = None) -> Callable[..., dict]:
     context_builder = context_builder or ContextBuilder()
     @node_trace("retrieve_history")
-    def profile_classifier(state: JournalState) -> dict:
+    def profile_scanner(state: JournalState) -> dict:
         try:
             # preconditions
             if len(state["session_messages"]) < 1:
                 raise  Exception("No session messages found while asking for AI response")
 
-            # set up the messages we will pass the llm for this profile classification
+            # The profile-scanner prompt is parametric: it needs the current
+            # UserProfile rendered into its template via prompt_vars. Using a
+            # default profile until the JournalState carries one through.
+            current_profile = UserProfile()
+
             messages = context_builder.get_context(
                 ContextSpecification(
-                    prompt_key=PromptKey.profile_CLASSIFIER,
+                    prompt_key=PromptKey.PROFILE_CLASSIFIER,
                     last_k_session_messages=5,
                     last_k_recent_messages=0,
-                    top_k_retrieved_history=0
-                ) ,
+                    top_k_retrieved_history=0,
+                    prompt_vars={"current_profile": current_profile.model_dump_json(indent=2)},
+                ),
                 session_messages=state["session_messages"])
 
+            # hack hack
+
+
             # involve the llm
-            structured_llm = llm.structured(ScoreCard)
+            structured_llm = llm.structured(UserProfile)
             score_card: ScoreCard = structured_llm.invoke(messages)
 
             # translate the score_card into a message specification
@@ -264,6 +272,6 @@ def make_profile_classifier(llm: LLMClient, context_builder: ContextBuilder | No
         return {"score_card": score_card}  ## NO - we need to assess the score card and return the best ones
 
 
-    return intent_classifier
+    return profile_scanner
 
 

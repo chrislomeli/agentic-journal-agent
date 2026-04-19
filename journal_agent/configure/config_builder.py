@@ -33,11 +33,11 @@ DEFAULT_SESSION_MESSAGES_COUNT = 10
 DEFAULT_RETRIEVED_HISTORY_COUNT = 5
 DEFAULT_RETRIEVED_HISTORY_DISTANCE = 3
 DEFAULT_RESPONSE_STYLE="structured with headers"
-DEFAULT_EXPLANATION_DEPTH="advanced — draw on academic and literary references naturally, the way an educated friend would in conversation, not as citations or lectures"
+DEFAULT_EXPLANATION_DEPTH="advanced: draw on academic and literary references naturally, the way an educated friend would in conversation, not as citations or lectures"
 DEFAULT_TONE="warm and familiar, encouraging but not patronizing — a trusted friend who happens to be well-read. Speak as a peer, not an authority"
 HUMAN_NAME="Chris"
 AI_NAME=None
-DEFAULT_LEARNING_STYLE="conceptual with examples — when exploring ideas, connect them to parallels in philosophy, literature, psychology, and history. Not to teach, but to enrich the conversation"
+DEFAULT_LEARNING_STYLE="conceptual with examples: when exploring ideas, connect them to parallels in philosophy, literature, psychology, and history. Not to teach, but to enrich the conversation"
 DEFAULT_INTERESTS=["philosophy", "musicality", "creative writing", "artificial intelligence", "software architecture"]
 DEFAULT_PET_PEEVES= [
     "Never provide toy or simplified designs — always show professional-grade patterns",

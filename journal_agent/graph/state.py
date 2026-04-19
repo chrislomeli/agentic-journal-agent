@@ -12,7 +12,7 @@ from typing import Annotated, TypedDict
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 
-from journal_agent.model.session import Fragment, Exchange, ThreadSegment, ContextSpecification, Status
+from journal_agent.model.session import Fragment, Exchange, ThreadSegment, ContextSpecification, Status, UserProfile
 
 
 class JournalState(TypedDict):
@@ -44,5 +44,6 @@ class JournalState(TypedDict):
     fragments: list[Fragment]
     retrieved_history: list[Fragment]
     context_specification: ContextSpecification
+    user_profile: UserProfile
     status: Status
     error_message: str | None

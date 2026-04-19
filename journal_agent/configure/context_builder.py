@@ -90,9 +90,10 @@ class ContextBuilder:
         ) if retrieved_fragments and instruction.top_k_retrieved_history else []
 
 
-        # get the prompt value using the PromptKey passed in
+        # get the prompt value using the PromptKey passed in; parametric
+        # prompts pull their runtime values from instruction.prompt_vars.
         try:
-            prompt: str = get_prompt(instruction.prompt_key)
+            prompt: str = get_prompt(instruction.prompt_key, **instruction.prompt_vars)
         except KeyError as e:
             raise MissingStateError(f"prompt:{instruction.prompt_key}") from e
 

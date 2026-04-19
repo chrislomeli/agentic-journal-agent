@@ -17,6 +17,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -162,6 +163,8 @@ class ScoreCard(BaseModel):
 
 class PromptKey(Enum):
     INTENT_CLASSIFIER = "intent_classifier"
+    PROFILE_CLASSIFIER = "profile_classifier"
+    PROFILE_SCANNER = "profile_classifier"
     CONVERSATION = "conversation"
     SOCRATIC = "socratic"
     GUIDANCE = "guidance"
@@ -171,6 +174,7 @@ class PromptKey(Enum):
     FRAGMENT_EXTRACTOR = "extractor"
 
 
+
 class ContextSpecification(BaseModel):
     prompt_key: PromptKey = Field(default=PromptKey.CONVERSATION)
     tags: list[str] = Field(default_factory=list)
@@ -178,6 +182,7 @@ class ContextSpecification(BaseModel):
     last_k_recent_messages: int = Field(default=DEFAULT_SESSION_MESSAGES_COUNT, ge=0, le=20)
     top_k_retrieved_history: int = Field(default=DEFAULT_RETRIEVED_HISTORY_COUNT, ge=0, le=10)
     distance_retrieved_history: int = Field(default=DEFAULT_RETRIEVED_HISTORY_DISTANCE, ge=0, le=10)
+    prompt_vars: dict[str, Any] = Field(default_factory=dict)
 
 
 class UserProfile(BaseModel):
@@ -202,4 +207,6 @@ class UserProfile(BaseModel):
 
     # Meta
     updated_at: datetime = Field(default_factory=datetime.now)
-    session_count: int = Field(default=0)  # how many sessions contributed
+    is_modified: bool = Field(default=False)  # how many sessions contributed
+
+
