@@ -23,12 +23,13 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from journal_agent.comms.llm_client import LLMClient
 from journal_agent.configure.context_builder import ContextBuilder
-from journal_agent.configure.prompts import get_prompt, taxonomy_json, PromptKey
+from journal_agent.configure.prompts import get_prompt
+from journal_agent.configure.prompts._helpers import taxonomy_json
 from journal_agent.configure.score_card import resolve_scorecard_to_specification
 from journal_agent.graph.node_tracer import node_trace
 from journal_agent.graph.state import (
     JournalState, )
-from journal_agent.model.session import Status, UserProfile
+from journal_agent.model.session import Status, UserProfile, PromptKey
 from journal_agent.model.session import ThreadSegmentList, ExchangeClassificationRequest, ThreadSegment, Exchange, \
     ThreadClassificationResponse, ExpandedThreadSegment, Fragment, \
     FragmentDraftList, ScoreCard, ContextSpecification
@@ -194,18 +195,27 @@ def make_intent_classifier(llm: LLMClient, context_builder: ContextBuilder | Non
                 raise ValueError("No session messages found while asking for AI response")
 
             # set up the messages we will pass the llm for this intent classification
+            intent_spec = ContextSpecification(
+                prompt_key=PromptKey.INTENT_CLASSIFIER,
+                last_k_session_messages=5,
+                last_k_recent_messages=0,
+                top_k_retrieved_history=0,
+            )
+            prompt = get_prompt(key=PromptKey.INTENT_CLASSIFIER, state=state)
             messages = context_builder.get_context(
-                ContextSpecification(
-                    prompt_key=PromptKey.INTENT_CLASSIFIER,
-                    last_k_session_messages=5,
-                    last_k_recent_messages=0,
-                    top_k_retrieved_history=0
-                ) ,
-                session_messages=state["session_messages"])
+                prompt=prompt,
+                instruction=intent_spec,
+                session_messages=state["session_messages"],
+            )
 
             # involve the llm
             structured_llm = llm.structured(ScoreCard)
             score_card: ScoreCard = structured_llm.invoke(messages)
+
+            # handle user profile changes
+            if score_card.personalization_score >= 0.5:
+                state["user_profile"].is_current = False
+                state["user_profile"].is_updated = False
 
             # translate the score_card into a message specification
             specification = resolve_scorecard_to_specification(score_card)
@@ -238,27 +248,26 @@ def make_profile_scanner(llm: LLMClient, context_builder: ContextBuilder | None 
                 raise  Exception("No session messages found while asking for AI response")
 
             # The profile-scanner prompt is parametric: it needs the current
-            # UserProfile rendered into its template via prompt_vars. Using a
-            # default profile until the JournalState carries one through.
-            current_profile = UserProfile()
-
+            # UserProfile rendered into its template.
+            profile_spec = ContextSpecification(
+                prompt_key=PromptKey.PROFILE_SCANNER,
+                last_k_session_messages=1,
+                last_k_recent_messages=0,
+                top_k_retrieved_history=0,
+            )
+            prompt = get_prompt(key=PromptKey.PROFILE_SCANNER, state=state)
             messages = context_builder.get_context(
-                ContextSpecification(
-                    prompt_key=PromptKey.PROFILE_CLASSIFIER,
-                    last_k_session_messages=5,
-                    last_k_recent_messages=0,
-                    top_k_retrieved_history=0,
-                    prompt_vars={"current_profile": current_profile.model_dump_json(indent=2)},
-                ),
-                session_messages=state["session_messages"])
+                prompt=prompt,
+                instruction=profile_spec,
+                session_messages=state["session_messages"],
+            )
 
             # involve the llm
             structured_llm = llm.structured(UserProfile)
             user_profile: UserProfile = structured_llm.invoke(messages)
 
             # at this point we might have changed something about the user profile
-
-            if user_profile.is_current:
+            if user_profile.is_updated:
                 UserProfileStore().save_profile(user_profile)
 
                 # push into state

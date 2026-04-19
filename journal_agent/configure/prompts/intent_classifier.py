@@ -7,7 +7,10 @@ from journal_agent.model.session import Domain, ScoreCard
 from ._helpers import TAXONOMY, _schema_block
 
 TEMPLATE = f"""
-You are a message-intent scorer for a journaling AI.
+You are a message-intent scorer for a journaling AI.  You are evaluating the intent of the last message in the list across the elements in ScoreCard 
+below the SCORE CARD below.   Please evaluate the LAST message from the user and return a ScoreCard with three float scores and one Domain score per
+taxonomy tag.
+
 
 PURPOSE
 Your scores drive every downstream decision — which conversational
@@ -17,12 +20,15 @@ journal will respond in the wrong tone or surface irrelevant history.
 You ONLY score. You do NOT tag, summarize, or restructure.
 
 INPUT
-You will receive a list of messages.  The last message is the user's current request.  And the previous messages are for your contextual understanding.
+You will receive a list of messages.  
+The LAST message is the user's current request. This the message you are answering and evaluating for any personalization changes.
+Any previous messages are for your contextual understanding.
 
 OUTPUT
 A single ScoreCard with three float scores and one Domain score per
 taxonomy tag.
 
+SCORE CARD
 {_schema_block(ScoreCard)}
 
 SCORING RUBRIC — ANCHORED SCALES
@@ -45,11 +51,10 @@ first_person_score — How much is the speaker talking about themselves?
   1.0  Deeply personal. The speaker's own feelings, plans, or identity.
        "I've been struggling with whether I'm cut out for this."
 
-personalization_score — How much is the user asking for a change in the AI's behavior?
-  0.0  No directive. Reflection, musing, or open-ended sharing.
-       "I've been thinking a lot about what matters to me."
-  0.5  Soft or implied request for the AI to do something.
-       "It might be nice to get the point more quickly"
+personalization_score — ONLY evaluate the LAST message in the list. Is the user asking for a change in the way the AI communicates?
+  0.0  No directive. e.g. "I believe in a universal truth"  or "I had luch early"
+  0.5  Soft or implied request for the AI to change the way the AI interacts with the user.
+       "I like complete explanations"
   1.0  Clear, specific instruction.
        "Please call me Chris"
        
@@ -75,3 +80,4 @@ The domains to score are:
 
 
 """
+

@@ -29,6 +29,7 @@ from journal_agent.comms.human_chat import get_human_input
 from journal_agent.comms.llm_client import LLMClient
 from journal_agent.comms.llm_registry import LLMRegistry
 from journal_agent.configure.context_builder import ContextBuilder, ContextBuildError
+from journal_agent.configure.prompts import get_prompt
 from journal_agent.graph.node_tracer import node_trace
 from journal_agent.graph.nodes.classifier import (
     make_exchange_decomposer,
@@ -135,10 +136,15 @@ def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore, context
 
             # Build the system message with retrieved context baked in
             instruction = state["context_specification"]
-            messages = context_builder.get_context(instruction=instruction,
-                                                   session_messages=state["session_messages"],
-                                                   recent_messages=state["recent_messages"],
-                                                   retrieved_fragments=state["retrieved_history"])
+            prompt = get_prompt(key=instruction.prompt_key, state=state)
+
+            messages = context_builder.get_context(
+                prompt=prompt,
+                instruction=instruction,
+                session_messages=state["session_messages"],
+                recent_messages=state["recent_messages"],
+                retrieved_fragments=state["retrieved_history"],
+            )
 
             # get the llm response
             client = llm.get_client()
@@ -217,10 +223,30 @@ def route_on_intent(state: JournalState) -> str:
         return END
     elif state["status"] == Status.COMPLETED:
         return "save_transcript"
-    elif state["context_specification"].top_k_retrieved_history > 0:
-        return "retrieve_history"
     else:
-        return "get_ai_response"
+        if not state["user_profile"].is_current:
+            return "profile_scanner"
+        if state["context_specification"].top_k_retrieved_history > 0:
+            return "retrieve_history"
+        else:
+            return "get_ai_response"
+
+def route_on_profile(state: JournalState) -> str:
+    """After intent classification: skip retrieval if top_k_retrieved_history is 0."""
+    if state["status"] == Status.ERROR:
+        logger.warning(
+            "Routing to end after user input error (session_id=%s, error_message=%s)",
+            state.get("session_id", "unknown"),
+            state.get("error_message"),
+        )
+        return END
+    elif state["status"] == Status.COMPLETED:
+        return "save_transcript"
+    else:
+        if state["context_specification"].top_k_retrieved_history > 0:
+            return "retrieve_history"
+        else:
+            return "get_ai_response"
 
 def route_on_ai_response(state: JournalState) -> str:
     """After AI response: ERROR → END, else → back to get_user_input."""
@@ -283,6 +309,7 @@ def build_journal_graph(
     builder.add_conditional_edges("get_user_input", route_on_user_input)
 
     builder.add_conditional_edges("intent_classifier", route_on_intent)
+    builder.add_conditional_edges("profile_scanner", route_on_profile)
     builder.add_conditional_edges("get_ai_response", route_on_ai_response)
 
     builder.add_conditional_edges("retrieve_history", goto("get_ai_response", on_completion="save_transcript"))

@@ -21,6 +21,7 @@ from journal_agent.configure.config_builder import (
     HUMAN_NAME,
 )
 from journal_agent.configure.prompts import get_prompt
+from journal_agent.graph.state import JournalState
 from journal_agent.model.session import (
     ClassifiedExchange,
     ContextSpecification,
@@ -35,6 +36,26 @@ from journal_agent.model.session import (
     Turn,
     UserProfile,
 )
+
+
+def _make_state(**overrides) -> dict:
+    """Minimal JournalState-compatible dict for prompt tests."""
+    state = {
+        "session_id": "test-session",
+        "recent_messages": [],
+        "session_messages": [],
+        "transcript": [],
+        "threads": [],
+        "classified_threads": [],
+        "fragments": [],
+        "retrieved_history": [],
+        "context_specification": ContextSpecification(),
+        "user_profile": UserProfile(),
+        "status": Status.IDLE,
+        "error_message": None,
+    }
+    state.update(overrides)
+    return state
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -64,8 +85,8 @@ class TestUserProfileDefaults:
         assert p.explanation_depth == DEFAULT_EXPLANATION_DEPTH
         assert p.tone == DEFAULT_TONE
         assert p.learning_style == DEFAULT_LEARNING_STYLE
-        assert p.human_name == HUMAN_NAME
-        assert p.ai_name == AI_NAME
+        assert p.human_label == HUMAN_NAME
+        assert p.ai_label == AI_NAME
 
     def test_list_defaults_match_config_constants(self):
         p = UserProfile()
@@ -75,15 +96,12 @@ class TestUserProfileDefaults:
     def test_optional_fields_have_correct_none_defaults(self):
         p = UserProfile()
         assert p.decision_style is None
-        assert p.ai_name is None
+        assert p.ai_label is None
 
     def test_empty_list_defaults(self):
         p = UserProfile()
         assert p.active_projects == []
         assert p.recurring_themes == []
-
-    def test_session_count_defaults_to_zero(self):
-        assert UserProfile().session_count == 0
 
     def test_updated_at_defaults_to_now(self):
         before = datetime.now()
@@ -114,11 +132,10 @@ class TestUserProfileMutableDefaultIsolation:
 
 class TestUserProfileSerialization:
     def test_round_trips_through_json(self):
-        original = UserProfile(human_name="Alice", session_count=3)
+        original = UserProfile(human_label="Alice")
         json_str = original.model_dump_json()
         restored = UserProfile.model_validate_json(json_str)
-        assert restored.human_name == "Alice"
-        assert restored.session_count == 3
+        assert restored.human_label == "Alice"
         assert restored.interests == original.interests
         assert restored.pet_peeves == original.pet_peeves
 
@@ -242,39 +259,32 @@ class TestScoreCard:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class TestPromptKeyRegistry:
-    # Keys whose templates require runtime variables. Listed by enum value so
-    # aliases (e.g. PROFILE_SCANNER → "profile_classifier") collapse correctly.
-    _PARAMETRIC_KEYS: dict[str, dict] = {
-        PromptKey.PROFILE_SCANNER.value: {
-            "current_profile": UserProfile().model_dump_json(indent=2),
-        },
-    }
 
     def test_every_prompt_key_resolves_to_a_non_empty_template(self):
+        state = _make_state()
         for key in PromptKey:
-            kwargs = self._PARAMETRIC_KEYS.get(key.value, {})
-            template = get_prompt(key, **kwargs)
+            template = get_prompt(key, state=state)
             assert isinstance(template, str)
             assert len(template) > 0, f"Empty template for {key}"
 
     def test_get_prompt_accepts_string_value(self):
-        template = get_prompt(PromptKey.CONVERSATION.value)
+        state = _make_state()
+        template = get_prompt(PromptKey.CONVERSATION.value, state=state)
         assert isinstance(template, str)
 
     def test_get_prompt_raises_for_unknown_key(self):
+        state = _make_state()
         with pytest.raises(KeyError):
-            get_prompt("no_such_key_ever")
+            get_prompt("no_such_key_ever", state=state)
 
     def test_parametric_prompt_renders_runtime_vars(self):
-        profile = UserProfile(human_name="Marker-Alice")
-        rendered = get_prompt(
-            PromptKey.PROFILE_SCANNER,
-            current_profile=profile.model_dump_json(indent=2),
-        )
+        profile = UserProfile(human_label="Marker-Alice")
+        state = _make_state(user_profile=profile)
+        rendered = get_prompt(PromptKey.PROFILE_SCANNER, state=state)
         assert "Marker-Alice" in rendered
 
     def test_parametric_prompt_missing_var_raises(self):
-        with pytest.raises(KeyError):
+        with pytest.raises(ValueError):
             get_prompt(PromptKey.PROFILE_SCANNER)
 
 

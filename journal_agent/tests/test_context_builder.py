@@ -1,9 +1,6 @@
 """Layer 3 tests — ContextBuilder (configure/context_builder.py).
 
-API: get_context(instruction: ContextSpecification,
-                 session_messages=None,
-                 recent_messages=None,
-                 retrieved_fragments=None) -> list[BaseMessage]
+API: get_context(prompt, instruction, session_messages, recent_messages, retrieved_fragments)
 
 Output order: [SystemMessage, *recent_messages, *session_messages]
 """
@@ -17,12 +14,14 @@ from journal_agent.configure.context_builder import (
     ContextBuildError,
     ContextBuilder,
     ContextTooLargeError,
-    MissingStateError,
 )
-from journal_agent.model.session import ContextSpecification, Fragment, PromptKey, Tag
+from journal_agent.model.session import ContextSpecification, Fragment, Tag
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+DEFAULT_PROMPT = "You are a helpful assistant."
+
 
 def make_fragment(content: str = "past thought", tags: tuple[str, ...] = ("general",)) -> Fragment:
     return Fragment(
@@ -46,6 +45,7 @@ class TestHappyPath:
     def test_first_message_is_system_message(self):
         builder = ContextBuilder()
         messages = builder.get_context(
+            prompt=DEFAULT_PROMPT,
             instruction=make_spec(),
             session_messages=[HumanMessage(content="hello")],
         )
@@ -54,6 +54,7 @@ class TestHappyPath:
     def test_output_order_is_system_then_recent_then_session(self):
         builder = ContextBuilder()
         messages = builder.get_context(
+            prompt=DEFAULT_PROMPT,
             instruction=make_spec(),
             session_messages=[HumanMessage(content="session-msg")],
             recent_messages=[HumanMessage(content="recent-msg")],
@@ -63,16 +64,16 @@ class TestHappyPath:
         assert messages[1].content == "recent-msg"
         assert messages[2].content == "session-msg"
 
-    def test_system_message_wraps_prompt_in_instructions_xml(self):
+    def test_system_message_contains_prompt_content(self):
         builder = ContextBuilder()
-        messages = builder.get_context(instruction=make_spec())
+        messages = builder.get_context(prompt=DEFAULT_PROMPT, instruction=make_spec())
         sys_content = messages[0].content
-        assert "<instructions>" in sys_content
-        assert "</instructions>" in sys_content
+        assert DEFAULT_PROMPT in sys_content
 
     def test_retrieved_context_is_embedded_in_system_message_xml(self):
         builder = ContextBuilder()
         messages = builder.get_context(
+            prompt=DEFAULT_PROMPT,
             instruction=make_spec(),
             retrieved_fragments=[make_fragment("remembered this")],
         )
@@ -83,20 +84,13 @@ class TestHappyPath:
 
     def test_empty_retrieved_fragments_omits_retrieved_context_block(self):
         builder = ContextBuilder()
-        messages = builder.get_context(instruction=make_spec(), retrieved_fragments=[])
+        messages = builder.get_context(prompt=DEFAULT_PROMPT, instruction=make_spec(), retrieved_fragments=[])
         assert "<retrieved_context>" not in messages[0].content
 
     def test_none_retrieved_fragments_omits_retrieved_context_block(self):
         builder = ContextBuilder()
-        messages = builder.get_context(instruction=make_spec())
+        messages = builder.get_context(prompt=DEFAULT_PROMPT, instruction=make_spec())
         assert "<retrieved_context>" not in messages[0].content
-
-    def test_each_prompt_key_produces_non_empty_system_message(self):
-        builder = ContextBuilder()
-        for key in PromptKey:
-            messages = builder.get_context(instruction=make_spec(prompt_key=key))
-            assert isinstance(messages[0], SystemMessage)
-            assert len(messages[0].content) > 0, f"Empty system message for {key}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -104,14 +98,11 @@ class TestHappyPath:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class TestTokenBudget:
-    def test_drops_retrieved_context_when_over_budget(self, monkeypatch):
-        monkeypatch.setattr(
-            "journal_agent.configure.context_builder.get_prompt",
-            lambda key: "short prompt",
-        )
+    def test_drops_retrieved_context_when_over_budget(self):
         builder = ContextBuilder()
         builder.max_tokens = 100
         messages = builder.get_context(
+            prompt="short prompt",
             instruction=make_spec(),
             session_messages=[HumanMessage(content="q")],
             retrieved_fragments=[make_fragment(content="x" * 1000)],
@@ -119,14 +110,11 @@ class TestTokenBudget:
         assert "<retrieved_context>" not in messages[0].content
         assert any(m.content == "q" for m in messages[1:])
 
-    def test_drops_recent_messages_when_still_over_after_retrieved_dropped(self, monkeypatch):
-        monkeypatch.setattr(
-            "journal_agent.configure.context_builder.get_prompt",
-            lambda key: "short prompt",
-        )
+    def test_drops_recent_messages_when_still_over_after_retrieved_dropped(self):
         builder = ContextBuilder()
         builder.max_tokens = 50
         messages = builder.get_context(
+            prompt="short prompt",
             instruction=make_spec(),
             session_messages=[HumanMessage(content="keep-me")],
             recent_messages=[HumanMessage(content="x" * 400)],
@@ -135,30 +123,22 @@ class TestTokenBudget:
         assert "keep-me" in non_system
         assert not any("x" * 100 in c for c in non_system)
 
-    def test_raises_context_too_large_when_prompt_alone_blows_budget(self, monkeypatch):
-        monkeypatch.setattr(
-            "journal_agent.configure.context_builder.get_prompt",
-            lambda key: "x" * 10_000,
-        )
+    def test_raises_context_too_large_when_prompt_alone_blows_budget(self):
         builder = ContextBuilder()
         builder.max_tokens = 100
 
         with pytest.raises(ContextTooLargeError) as exc_info:
-            builder.get_context(instruction=make_spec())
+            builder.get_context(prompt="x" * 10_000, instruction=make_spec())
 
         err = exc_info.value
         assert err.tokens > err.budget
         assert isinstance(err, ContextBuildError)
 
-    def test_context_too_large_error_is_context_build_error(self, monkeypatch):
-        monkeypatch.setattr(
-            "journal_agent.configure.context_builder.get_prompt",
-            lambda key: "x" * 10_000,
-        )
+    def test_context_too_large_error_is_context_build_error(self):
         builder = ContextBuilder()
         builder.max_tokens = 100
         with pytest.raises(ContextBuildError):
-            builder.get_context(instruction=make_spec())
+            builder.get_context(prompt="x" * 10_000, instruction=make_spec())
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -170,7 +150,7 @@ class TestInstructionLimits:
         builder = ContextBuilder()
         spec = make_spec(last_k_session_messages=2)
         msgs = [HumanMessage(content=f"s{i}") for i in range(5)]
-        result = builder.get_context(instruction=spec, session_messages=msgs)
+        result = builder.get_context(prompt=DEFAULT_PROMPT, instruction=spec, session_messages=msgs)
         session_in_result = [m for m in result[1:] if m.content.startswith("s")]
         assert len(session_in_result) == 2
         assert session_in_result[0].content == "s3"
@@ -180,14 +160,14 @@ class TestInstructionLimits:
         builder = ContextBuilder()
         spec = make_spec(last_k_session_messages=0)
         msgs = [HumanMessage(content="should-be-excluded")]
-        result = builder.get_context(instruction=spec, session_messages=msgs)
+        result = builder.get_context(prompt=DEFAULT_PROMPT, instruction=spec, session_messages=msgs)
         assert all(m.content != "should-be-excluded" for m in result)
 
     def test_top_k_retrieved_history_limits_fragments_in_system_message(self):
         builder = ContextBuilder()
         spec = make_spec(top_k_retrieved_history=1)
         fragments = [make_fragment(f"fragment-{i}") for i in range(3)]
-        result = builder.get_context(instruction=spec, retrieved_fragments=fragments)
+        result = builder.get_context(prompt=DEFAULT_PROMPT, instruction=spec, retrieved_fragments=fragments)
         sys_content = result[0].content
         assert "fragment-0" in sys_content
         assert "fragment-1" not in sys_content
@@ -199,24 +179,11 @@ class TestInstructionLimits:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class TestErrors:
-    def test_missing_prompt_key_raises_missing_state_error(self, monkeypatch):
-        monkeypatch.setattr(
-            "journal_agent.configure.context_builder.get_prompt",
-            lambda key: (_ for _ in ()).throw(KeyError("injected")),
-        )
+    def test_context_too_large_is_context_build_error(self):
         builder = ContextBuilder()
-        with pytest.raises(MissingStateError) as exc_info:
-            builder.get_context(instruction=make_spec())
-        assert "prompt:" in str(exc_info.value)
-        assert isinstance(exc_info.value, ContextBuildError)
-
-    def test_missing_state_error_is_context_build_error(self, monkeypatch):
-        monkeypatch.setattr(
-            "journal_agent.configure.context_builder.get_prompt",
-            lambda key: (_ for _ in ()).throw(KeyError("injected")),
-        )
+        builder.max_tokens = 100
         with pytest.raises(ContextBuildError):
-            ContextBuilder().get_context(instruction=make_spec())
+            builder.get_context(prompt="x" * 10_000, instruction=make_spec())
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -246,17 +213,14 @@ class TestTokenCounting:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class TestStateIsolation:
-    def test_pruning_does_not_mutate_caller_session_messages(self, monkeypatch):
-        monkeypatch.setattr(
-            "journal_agent.configure.context_builder.get_prompt",
-            lambda key: "short",
-        )
+    def test_pruning_does_not_mutate_caller_session_messages(self):
         builder = ContextBuilder()
         builder.max_tokens = 50
         session_msgs = [HumanMessage(content="x" * 200)]
         recent_msgs = [HumanMessage(content="y" * 200)]
         try:
             builder.get_context(
+                prompt="short",
                 instruction=make_spec(),
                 session_messages=session_msgs,
                 recent_messages=recent_msgs,

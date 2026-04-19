@@ -155,11 +155,11 @@ class Domain(BaseModel):
 
 
 class ScoreCard(BaseModel):
-    question_score: float  # 0.0–1.0  how much is this a request for information/opinion
-    first_person_score: float  # 0.0–1.0  how much is the speaker talking about themselves
-    personalization_score: float  # 0.0–1.0  is the user asking for a change in the ai behavior
-    task_score: float  # 0.0–1.0  how much does this contain an explicit directive
-    domains: list[Domain]  # scores across all 8 domains
+    question_score: float = Field(default=0, ge=0, le=1, description="Is the user asking a question?")  # 0.0–1.0  how much is this a request for information/opinion
+    first_person_score: float  = Field(default=0, ge=0, le=1, description="Is the user referring to himself?")  # 0.0–1.0  how much is the speaker talking about themselves
+    personalization_score: float  = Field(default=0, ge=0, le=1, description="Is the user asking for a change in the way the AI communicates? 0.0 = no such request, 1.0 = clear directive like 'call me Chris'")  # 0.0–1.0  is the user asking for a change in the ai behavior
+    task_score: float = Field(default=0, ge=0, le=1, description="Is the asking the AI to perform a specific task e.g. (please do this)")  # 0.0–1.0  how much does this contain an explicit directive
+    domains: list[Domain] = Field(default_factory=list, description="Engagement score (0.0-1.0) for each taxonomy domain")   # scores across all 8 domains
 
 
 class PromptKey(Enum):
@@ -188,27 +188,27 @@ class ContextSpecification(BaseModel):
 
 class UserProfile(BaseModel):
     # Communication
-    response_style: str | None = Field(default=DEFAULT_RESPONSE_STYLE)  # free-text, LLM-generated summary
-    explanation_depth: str | None = Field(default=DEFAULT_EXPLANATION_DEPTH) # "expert" | "intermediate" | "beginner"
-    tone: str| None  = Field(default=DEFAULT_TONE)  # free-text
+    response_style: str | None = Field(default=DEFAULT_RESPONSE_STYLE, description="Free text field describing how the AI should format and present data to the user")  # free-text, LLM-generated summary
+    explanation_depth: str | None = Field(default=DEFAULT_EXPLANATION_DEPTH, description="Free text field describing the level that the AI should discuss at e.g. (expert, intermediate, advanced)")  # "expert" | "intermediate" | "beginner"
+    tone: str| None  = Field(default=DEFAULT_TONE, description="Free text field describing the communication style the user prefers  .e.g. (friendly, formal, casual)")  # free-text
 
     # Domain
-    interests: list[str]   = Field(default_factory=lambda: list(DEFAULT_INTERESTS)) # accumulated across sessions
-    active_projects: list[str] = Field(default_factory=list)
-    recurring_themes: list[str] = Field(default_factory=list)
+    interests: list[str]   = Field(default_factory=lambda: list(DEFAULT_INTERESTS), description="Free text list of interests from specific user requests e.g. (please remember ia am interested in this subject <subject name>") # accumulated across sessions
+    active_projects: list[str] = Field(default_factory=list, description="Future - do not use")
+    recurring_themes: list[str] = Field(default_factory=list, description="Future - do not use")
 
     # Interaction
-    decision_style: str| None   = Field(default=None)  # free-text
-    learning_style: str| None  = Field(default=DEFAULT_LEARNING_STYLE) # free-text
-    pet_peeves: list[str] = Field(default_factory=lambda: list(DEFAULT_PET_PEEVES))
+    decision_style: str| None   = Field(default=None, description="Free text field describing how the AI should reason about it's decisions e.g. (look for alternative, then propose one))")  # free-text
+    learning_style: str| None  = Field(default=DEFAULT_LEARNING_STYLE, description="Free text field describing how the AI should present information to the user e.g. (include alteratives and explain the reasoning)") # free-text
+    pet_peeves: list[str] = Field(default_factory=lambda: list(DEFAULT_PET_PEEVES), description="Free text list describing things the user expressly does NOT want")
 
     # Identity
-    human_name: str = Field(default=HUMAN_NAME)
-    ai_name: str | None = Field(default=AI_NAME)
+    human_label: str = Field(default=HUMAN_NAME, description="Free text field describing how the user wants to be addressed e.g. (please call me `Lord Vader`)")
+    ai_label: str | None = Field(default=AI_NAME, description="Free text field describing how the user wants to address the AI e.g. (I'd like to refer to you as `Marvin`)")
 
     # Meta
     updated_at: datetime = Field(default_factory=datetime.now)
-    is_updated: bool = Field(default=False)  # does the profile need to be saved
-    is_current: bool = Field(default=False)  # is the current version current - set if the user has indicated they want a change
+    is_updated: bool = Field(default=False,  description="Boolean flag describing whether the AI is submitting changes for publication to the user's profile or not")  # does the profile need to be saved
+    is_current: bool = Field(default=False,  description="Boolean flag describing whether the user profile field needs to be re-evaluated and potentially changed")  # is the current version current - set if the user has indicated they want a change
 
 

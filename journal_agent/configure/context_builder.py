@@ -21,7 +21,6 @@ import logging
 import tiktoken
 from langchain_core.messages import BaseMessage, SystemMessage
 
-from journal_agent.configure.prompts import get_prompt, PromptKey
 from journal_agent.model.session import Fragment, ContextSpecification
 
 logger = logging.getLogger(__name__)
@@ -66,17 +65,27 @@ class ContextBuilder:
     def __init__(self):
         pass
 
-    def get_context(self, instruction: ContextSpecification, session_messages: list[BaseMessage] | None = None,
-                    recent_messages: list[BaseMessage] | None = None,
-                    retrieved_fragments: list[Fragment] | None = None) -> list[BaseMessage]:
+    def get_context(
+        self,
+        prompt: str,
+        instruction: ContextSpecification,
+        session_messages: list[BaseMessage] | None = None,
+        recent_messages: list[BaseMessage] | None = None,
+        retrieved_fragments: list[Fragment] | None = None,
+    ) -> list[BaseMessage]:
         """Build the full message list for one LLM call.
 
+        Args:
+            prompt: The fully-resolved system prompt string.
+            instruction: Controls truncation limits for messages and fragments.
+            session_messages: Conversation messages from the current session.
+            recent_messages: Messages from a previous session (seed context).
+            retrieved_fragments: Fragments from vector search.
+
         Returns [SystemMessage, ...recent_messages, ...session_messages].
-        Raises MissingStateError if the prompt key is invalid.
         Raises ContextTooLargeError if pruning cannot bring tokens under budget.
         """
-
-        # get all the various components we need to build the context - truncate them based on the instructions passed in
+        # truncate based on the instruction limits
         session_messages = list(
             session_messages[-instruction.last_k_session_messages:]      # truncate to the last N messages based on the instruction passed in
         ) if session_messages and instruction.last_k_session_messages else []  # guard against zeros and Nones
@@ -88,14 +97,6 @@ class ContextBuilder:
         retrieved_fragments = list(
             retrieved_fragments[:instruction.top_k_retrieved_history]   # truncate to the TOP N messages based on the instruction passed in
         ) if retrieved_fragments and instruction.top_k_retrieved_history else []
-
-
-        # get the prompt value using the PromptKey passed in; parametric
-        # prompts pull their runtime values from instruction.prompt_vars.
-        try:
-            prompt: str = get_prompt(instruction.prompt_key, **instruction.prompt_vars)
-        except KeyError as e:
-            raise MissingStateError(f"prompt:{instruction.prompt_key}") from e
 
         # build the retrieved context to a json string
         retrieved_context: str = json.dumps(
@@ -144,16 +145,15 @@ class ContextBuilder:
             raise ContextTooLargeError(int(count_all_tokens), int(effective_max))
 
         # Construct the System message
-        system_content = f"<instructions>\n{prompt}\n</instructions>"
-        logger.debug(f"System context: \n{system_content}")
+        logger.debug(f"System context: \n{prompt}")
 
         if retrieved_context and retrieved_fragments:
             rc = f"\n\n<retrieved_context>\n{retrieved_context}\n</retrieved_context>"
             logger.debug(f"Retrieved Context: \n{rc}")
-            system_content += rc
+            prompt += rc
 
         system_message = SystemMessage(
-            content=system_content
+            content=prompt
         )
 
         # log everything

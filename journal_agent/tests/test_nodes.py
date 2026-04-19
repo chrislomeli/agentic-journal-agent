@@ -39,6 +39,7 @@ from journal_agent.graph.nodes.save_data import (
     make_save_transcript,
 )
 from journal_agent.model.session import (
+    ContextSpecification,
     Domain,
     Exchange,
     Fragment,
@@ -53,6 +54,7 @@ from journal_agent.model.session import (
     ThreadSegment,
     ThreadSegmentList,
     Turn,
+    UserProfile,
 )
 
 
@@ -105,7 +107,8 @@ def _base_state(**overrides) -> dict:
         "classified_threads": [],
         "fragments": [],
         "retrieved_history": [],
-        "context_specification": None,
+        "context_specification": ContextSpecification(),
+        "user_profile": UserProfile(),
         "status": Status.IDLE,
         "error_message": None,
     }
