@@ -19,13 +19,14 @@ import asyncio
 import logging
 from collections.abc import Callable
 from datetime import datetime
+from typing import Coroutine, Any
 
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from journal_agent.comms.llm_client import LLMClient
 from journal_agent.configure.context_builder import ContextBuilder
 from journal_agent.configure.prompts import get_prompt
-from journal_agent.configure.prompts._helpers import taxonomy_json
+from journal_agent.configure.prompts.helpers import taxonomy_json
 from journal_agent.configure.score_card import resolve_scorecard_to_specification
 from journal_agent.graph.node_tracer import node_trace
 from journal_agent.graph.state import (
@@ -41,6 +42,7 @@ logger = logging.getLogger(__name__)
 # Maximum concurrent LLM calls when fan-out processing threads.
 # Prevents rate-limit saturation while still parallelizing.
 DEFAULT_LLM_CONCURRENCY = 4
+
 
 def inflate_threads(threads: list[ThreadSegment], exchanges: list[Exchange]) -> list[ExpandedThreadSegment]:
     """Expand compact ThreadSegments into full dialog text for LLM consumption.
@@ -77,6 +79,7 @@ def inflate_threads(threads: list[ThreadSegment], exchanges: list[Exchange]) -> 
 
 def make_exchange_decomposer(llm: LLMClient) -> Callable[..., dict]:
     """Factory: split the session transcript into topical ThreadSegments."""
+
     @node_trace("exchange_decomposer")
     def exchange_decomposer(state: JournalState) -> dict:
         try:
@@ -102,12 +105,13 @@ def make_exchange_decomposer(llm: LLMClient) -> Callable[..., dict]:
     return exchange_decomposer
 
 
-def make_thread_classifier(llm: LLMClient, max_concurrency: int = DEFAULT_LLM_CONCURRENCY) -> Callable[..., dict]:
+def make_thread_classifier(llm: LLMClient, max_concurrency: int = DEFAULT_LLM_CONCURRENCY) -> Callable[...,  Coroutine[Any, Any, dict]]:
     """Factory: assign taxonomy tags to each thread via structured LLM output.
 
     Per-thread LLM calls are fanned out with ``asyncio.gather``, bounded
     by a semaphore to avoid rate-limit saturation.
     """
+
     @node_trace("thread_classifier")
     async def thread_classifier(state: JournalState) -> dict:
 
@@ -148,12 +152,14 @@ def make_thread_classifier(llm: LLMClient, max_concurrency: int = DEFAULT_LLM_CO
     return thread_classifier
 
 
-def make_thread_fragment_extractor(llm: LLMClient, max_concurrency: int = DEFAULT_LLM_CONCURRENCY) -> Callable[..., dict]:
+def make_thread_fragment_extractor(llm: LLMClient, max_concurrency: int = DEFAULT_LLM_CONCURRENCY) -> Callable[
+    ...,  Coroutine[Any, Any, dict]]:
     """Factory: distill classified threads into standalone, searchable Fragments.
 
     Per-thread LLM calls are fanned out with ``asyncio.gather``, bounded
     by a semaphore to avoid rate-limit saturation.
     """
+
     @node_trace("fragment_extractor")
     async def fragment_extractor(state: JournalState) -> dict:
         try:
@@ -209,6 +215,7 @@ def make_intent_classifier(llm: LLMClient, context_builder: ContextBuilder | Non
     depth for the current turn.
     """
     context_builder = context_builder or ContextBuilder()
+
     @node_trace("intent_classifier")
     def intent_classifier(state: JournalState) -> dict:
         try:
@@ -256,9 +263,10 @@ def make_intent_classifier(llm: LLMClient, context_builder: ContextBuilder | Non
     return intent_classifier
 
 
-
-def make_profile_scanner(llm: LLMClient, profile_store: ProfileStore, context_builder: ContextBuilder | None = None) -> Callable[..., dict]:
+def make_profile_scanner(llm: LLMClient, profile_store: ProfileStore, context_builder: ContextBuilder | None = None) -> \
+Callable[..., dict]:
     context_builder = context_builder or ContextBuilder()
+
     @node_trace("profile_scanner")
     def profile_scanner(state: JournalState) -> dict:
         try:
@@ -303,5 +311,3 @@ def make_profile_scanner(llm: LLMClient, profile_store: ProfileStore, context_bu
             }
 
     return profile_scanner
-
-

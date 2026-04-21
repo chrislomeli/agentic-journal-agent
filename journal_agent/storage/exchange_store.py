@@ -51,8 +51,11 @@ class TranscriptStore:
     loop. Each completed pair becomes an Exchange, buffered in ``_exchanges``.
     At session end, ``store_cache`` flushes the buffer to disk.
     """
-    def __init__(self):
-        self._session_store = JsonStore("transcripts")
+    def __init__(self, session_store=None):
+        # Accepts any ArtifactStore-shaped object; defaults to local JSONL.
+        # A write-through wrapper can be injected here so the interrupt flush
+        # (store_cache) also dual-writes to Postgres.
+        self._session_store = session_store or JsonStore("transcripts")
         self._exchanges: list[Exchange] = []
         self._current_exchange: Exchange = Exchange()
 

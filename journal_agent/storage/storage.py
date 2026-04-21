@@ -50,9 +50,6 @@ class JsonStore:
             return None
 
     def save_session(self, session_id: str, exchanges: list[BaseModel]):
-        if self._path is None:
-            raise ValueError("Path name is not set")
-
         if not exchanges:
             return
 

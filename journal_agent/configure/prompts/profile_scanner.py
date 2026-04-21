@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from langchain_core.prompts import PromptTemplate
 
-from journal_agent.configure.prompts._helpers import _schema_block
+from journal_agent.configure.prompts.helpers import _schema_block
 from journal_agent.configure.prompts.base_prompt_template import PromptTemplateBuilder
 from journal_agent.graph.state import JournalState
 from journal_agent.model.session import UserProfile

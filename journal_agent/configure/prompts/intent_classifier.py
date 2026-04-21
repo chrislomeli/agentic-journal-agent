@@ -4,7 +4,7 @@ import json
 
 from journal_agent.model.session import Domain, ScoreCard
 
-from ._helpers import TAXONOMY, _schema_block
+from .helpers import TAXONOMY, _schema_block
 
 TEMPLATE = f"""
 You are a message-intent scorer for a journaling AI.  You are evaluating the intent of the last message in the list across the elements in ScoreCard 

@@ -6,7 +6,7 @@ from journal_agent.model.session import (
     Exchange,
 )
 
-from ._helpers import _schema_block
+from .helpers import _schema_block
 
 TEMPLATE = f"""
 You are a classification engine for a journaling AI.

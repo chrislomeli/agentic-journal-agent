@@ -7,7 +7,7 @@ from journal_agent.model.session import (
     ThreadClassificationResponse,
 )
 
-from ._helpers import _schema_block
+from .helpers import _schema_block
 
 TEMPLATE = f"""
 You are a taxonomy-tagging engine for a journaling AI.

@@ -26,8 +26,12 @@ from journal_agent.storage.storage import JsonStore
 
 logger = logging.getLogger(__name__)
 
-def make_save_transcript(store: JsonStore | None = None) -> Callable[..., dict]:
-    """Factory: persist the raw Exchange transcript as JSONL."""
+def make_save_transcript(store: ArtifactStore | None = None) -> Callable[..., dict]:
+    """Factory: persist the raw Exchange transcript.
+
+    Accepts any ArtifactStore — JsonStore for local-only, or a write-through
+    wrapper that dual-writes to JSONL and Postgres.
+    """
     store = store or JsonStore("transcripts")
 
     @node_trace("save_transcript")
@@ -50,8 +54,8 @@ def make_save_transcript(store: JsonStore | None = None) -> Callable[..., dict]:
     return save_transcript
 
 
-def make_save_threads(store: JsonStore | None = None) -> Callable[..., dict]:
-    """Factory: persist decomposed ThreadSegments as JSONL."""
+def make_save_threads(store: ArtifactStore | None = None) -> Callable[..., dict]:
+    """Factory: persist decomposed ThreadSegments."""
     store = store or JsonStore("threads")
 
     @node_trace("save_threads")
@@ -73,8 +77,8 @@ def make_save_threads(store: JsonStore | None = None) -> Callable[..., dict]:
     return save_threads
 
 
-def make_save_classified_threads(store: JsonStore | None = None) -> Callable[..., dict]:
-    """Factory: persist taxonomy-tagged ThreadSegments as JSONL."""
+def make_save_classified_threads(store: ArtifactStore | None = None) -> Callable[..., dict]:
+    """Factory: persist taxonomy-tagged ThreadSegments."""
     store = store or JsonStore("classified_threads")
 
     @node_trace("save_classified_threads")

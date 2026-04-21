@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from journal_agent.model.session import Exchange, ThreadSegment, ThreadSegmentList
 
-from ._helpers import _schema_block
+from .helpers import _schema_block
 
 TEMPLATE = f"""
 You are a thread-detector for a journaling AI.

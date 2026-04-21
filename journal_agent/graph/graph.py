@@ -45,7 +45,7 @@ from journal_agent.graph.state import (
     JournalState,
 )
 from journal_agent.model.session import Role, Status
-from journal_agent.storage.protocols import FragmentStore, ProfileStore, SessionStore
+from journal_agent.storage.protocols import ArtifactStore, FragmentStore, ProfileStore, SessionStore
 
 logger = logging.getLogger(__name__)
 
@@ -234,6 +234,9 @@ def build_journal_graph(
         session_store: SessionStore,
         fragment_store: FragmentStore,
         profile_store: ProfileStore,
+        transcript_store: ArtifactStore | None = None,
+        thread_store: ArtifactStore | None = None,
+        classified_thread_store: ArtifactStore | None = None,
 ):
     """Build and compile the journal conversation graph.
 
@@ -267,9 +270,9 @@ def build_journal_graph(
     builder.add_node("profile_scanner", make_profile_scanner(llm=classifier_llm, profile_store=profile_store))
 
     # Persistence nodes (one per pipeline artifact)
-    builder.add_node("save_transcript", make_save_transcript())
-    builder.add_node("save_threads", make_save_threads())
-    builder.add_node("save_classified_threads", make_save_classified_threads())
+    builder.add_node("save_transcript", make_save_transcript(store=transcript_store))
+    builder.add_node("save_threads", make_save_threads(store=thread_store))
+    builder.add_node("save_classified_threads", make_save_classified_threads(store=classified_thread_store))
     builder.add_node("save_fragments", make_save_fragments(fragment_store=fragment_store))
 
     # Wiring

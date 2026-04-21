@@ -7,7 +7,7 @@ from journal_agent.model.session import (
     FragmentDraftList,
 )
 
-from ._helpers import _schema_block
+from .helpers import _schema_block
 
 TEMPLATE = f"""
 You are a knowledge extractor for a journaling AI.

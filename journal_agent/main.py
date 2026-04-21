@@ -6,11 +6,67 @@ from langchain_core.messages import BaseMessage
 from journal_agent.comms.llm_registry import build_llm_registry
 from journal_agent.configure.config_builder import LLM_ROLE_CONFIG, configure_environment, models
 from journal_agent.graph.graph import build_journal_graph
-from journal_agent.graph.state import  JournalState
+from journal_agent.graph.state import JournalState
 from journal_agent.model.session import ContextSpecification, Status, UserProfile
 from journal_agent.storage.chroma_fragment_store import ChromaFragmentStore
 from journal_agent.storage.exchange_store import TranscriptStore
+from journal_agent.storage.pg_store import get_pg_store
 from journal_agent.storage.profile_store import UserProfileStore
+from journal_agent.storage.storage import JsonStore
+from journal_agent.storage.write_through import (
+    WriteThroughFragmentStore,
+    WriteThroughProfileStore,
+    WriteThroughThreadStore,
+    WriteThroughTranscriptStore,
+)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECTION 1: STORE WIRING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _build_stores(enable_postgres: bool):
+    """Return (session_store, fragment_store, profile_store,
+             transcript_store, thread_store, classified_thread_store).
+
+    When Postgres is disabled, the last three are None and the save nodes use
+    their default local JsonStores — behavior matches pre-refactor.
+    When enabled, every write path fans out to JSONL/Chroma AND Postgres.
+    """
+    fragment_store_local = ChromaFragmentStore()
+    profile_store_local = UserProfileStore()
+
+    if not enable_postgres:
+        return (
+            TranscriptStore(),
+            fragment_store_local,
+            profile_store_local,
+            None,
+            None,
+            None,
+        )
+
+    pg = get_pg_store()
+
+    transcript_store = WriteThroughTranscriptStore(JsonStore("transcripts"), pg)
+    thread_store = WriteThroughThreadStore(JsonStore("threads"), pg)
+    classified_thread_store = WriteThroughThreadStore(JsonStore("classified_threads"), pg)
+    fragment_store = WriteThroughFragmentStore(fragment_store_local, pg)
+    profile_store = WriteThroughProfileStore(profile_store_local, pg)
+
+    # TranscriptStore holds its own session_store for the KeyboardInterrupt
+    # flush path — inject the write-through wrapper so that path also dual-writes.
+    session_store = TranscriptStore(session_store=transcript_store)
+
+    return (
+        session_store,
+        fragment_store,
+        profile_store,
+        transcript_store,
+        thread_store,
+        classified_thread_store,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -20,7 +76,6 @@ from journal_agent.storage.profile_store import UserProfileStore
 
 def main():
     """Configure dependencies, build the graph, and run one interactive session."""
-    # configuration and setup
     settings = configure_environment()
 
     registry = build_llm_registry(
@@ -29,19 +84,22 @@ def main():
         role_config=LLM_ROLE_CONFIG,
     )
 
-    # create stores — all satisfy their respective protocols
-    # (SessionStore, FragmentStore, ProfileStore)
-    session_store = TranscriptStore()
-    fragment_store = ChromaFragmentStore()
-    profile_store = UserProfileStore()
+    (
+        session_store,
+        fragment_store,
+        profile_store,
+        transcript_store,
+        thread_store,
+        classified_thread_store,
+    ) = _build_stores(enable_postgres=settings.enable_postgres)
 
     # user profile
     user_profile = profile_store.load_profile()
 
-    # get previously stored messages - this assumes we always save transcripts to a retrievable store  - will this always be the case?
+    # previously stored messages — assumes transcripts are retrievable
     seed_context: list[BaseMessage] = session_store.retrieve_transcript()
 
-    session_id = str(uuid4())  # or loaded from prior session
+    session_id = str(uuid4())
     initial_state = JournalState(
         session_id=session_id,
         recent_messages=seed_context,
@@ -51,7 +109,7 @@ def main():
         classified_threads=[],
         fragments=[],
         retrieved_history=[],
-        context_specification=ContextSpecification(),  # nodes that need it run after intent_classifier sets it
+        context_specification=ContextSpecification(),
         user_profile=user_profile,
         status=Status.IDLE,
         error_message=None,
@@ -61,12 +119,14 @@ def main():
         session_store=session_store,
         fragment_store=fragment_store,
         profile_store=profile_store,
+        transcript_store=transcript_store,
+        thread_store=thread_store,
+        classified_thread_store=classified_thread_store,
     )
     try:
         graph.invoke(initial_state)
 
     except KeyboardInterrupt:
-        # optional: flush pending turns
         session_store.store_cache(session_id)
         print("\nInterrupted. Session saved.")
     print("done")

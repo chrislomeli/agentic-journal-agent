@@ -168,23 +168,15 @@ class VectorStore:
         )
 
 
-def get_vector_store(rebuild: bool = False):
-    vs = VectorStore()
-    data_folder = resolve_project_root() / "data" / "test"
+_store: VectorStore | None = None
+
+
+def get_vector_store(rebuild: bool = False) -> VectorStore:
+    """Return the module-level VectorStore singleton, creating it on first call."""
+    global _store
+    if _store is None:
+        _store = VectorStore()
     if rebuild:
-        vs.rebuild_chroma_from_json(data_folder)
-    return vs
-
-
-if __name__ == "__main__":
-    v = get_vector_store(rebuild=True)
-    matches = v.search_fragments("lets discuss humanity")
-
-    history = json.dumps([{
-        "relevance": round(rel, 3),
-        "content": f.content,
-        "tag": [t.tag for t in f.tags]
-    } for f, rel in matches])
-
-    print(history)
-    print(matches)
+        data_folder = resolve_project_root() / "data" / "test"
+        _store.rebuild_chroma_from_json(data_folder)
+    return _store
