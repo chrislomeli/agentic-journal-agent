@@ -16,15 +16,20 @@ from journal_agent.model.session import Fragment, Exchange, ThreadSegment, Conte
     Cluster, Insight
 
 
+class WindowParams(TypedDict):
+    window_start: datetime | None
+    window_end: datetime | None
+    limit: int | None
+
 class ReflectionState(TypedDict):
-    window_start: datetime
-    window_end: datetime
+    fetch_parameters: WindowParams | None
     fragments: list[Fragment]            # populated by collect_window
     clusters: list[Cluster]              # populated (and scored) by cluster_fragments
     insights: list[Insight]              # populated by label_clusters
-    # verified_insights: list[Insight]     # populated by verify_citations
-    summary: str                         # populated by summarize_result
-    error: str | None
+    verified_insights: list[Insight]     # populated by verify_citations
+    latest_insights: list[Insight]       # populated by format_result — the handoff slot
+    status: Status
+    error_message: str | None
 
 
 class JournalState(TypedDict):
@@ -55,6 +60,8 @@ class JournalState(TypedDict):
     classified_threads: Annotated[list[ThreadSegment], add]
     fragments: list[Fragment]
     retrieved_history: list[Fragment]
+    fetch_parameters: WindowParams | None
+    latest_insights: list[Insight]   # handoff from the reflection subgraph
     context_specification: ContextSpecification
     user_profile: UserProfile
     status: Status

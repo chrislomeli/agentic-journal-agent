@@ -515,26 +515,26 @@ End-of-session pipeline (updated):
 
 ```python
 def make_generate_insights(
-    llm: LLMClient,
-    insight_store: InsightStore | None = None,
+        llm: LLMClient,
+        insight_store: InsightStore | None = None,
 ) -> Callable[..., dict]:
-    insight_store = insight_store or InsightStore()
-    pipeline = InsightPipeline(llm=llm, store=insight_store)
-    strategy = TagClusterStrategy()
+  insight_store = insight_store or InsightStore()
+  pipeline = InsightPipeline(llm=llm, store=insight_store)
+  strategy = TagClusterStrategy()
 
-    @node_trace("generate_insights")
-    def generate_insights(state: JournalState) -> dict:
-        try:
-            all_fragments = fragment_store.load_all(user_id=state["user_id"])
-            existing = insight_store.load_current(user_id=state["user_id"])
-            watermark = max((i.created_at for i in existing), default=None)
-            insights = pipeline.run(all_fragments, strategy, watermark=watermark)
-            return {"status": Status.INSIGHTS_GENERATED}
-        except Exception as e:
-            logger.exception("Insight generation failed")
-            return {"status": Status.ERROR, "error_message": str(e)}
+  @node_trace("generate_insights")
+  def generate_insights(state: JournalState) -> dict:
+    try:
+      all_fragments = fragment_store.load_window(user_id=state["user_id"])
+      existing = insight_store.load_current(user_id=state["user_id"])
+      watermark = max((i.created_at for i in existing), default=None)
+      insights = pipeline.run(all_fragments, strategy, watermark=watermark)
+      return {"status": Status.INSIGHTS_GENERATED}
+    except Exception as e:
+      logger.exception("Insight generation failed")
+      return {"status": Status.ERROR, "error_message": str(e)}
 
-    return generate_insights
+  return generate_insights
 ```
 
 ### 7. Feeding insights into the conversation

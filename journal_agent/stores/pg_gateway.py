@@ -37,7 +37,9 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
+from journal_agent.configure.config_builder import INSIGHTS_FETCH_LIMIT
 from journal_agent.configure.settings import get_settings
+from journal_agent.graph.state import WindowParams
 from journal_agent.model.session import Exchange, Fragment, Role, Tag, ThreadSegment, Turn, UserProfile, Insight
 
 logger = logging.getLogger(__name__)
@@ -118,13 +120,12 @@ class PgGateway:
         self.ensure_session(session_id)
 
         sql = """
-            INSERT INTO exchanges (exchange_id, session_id, timestamp, human_content, ai_content)
-            VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (exchange_id) DO UPDATE SET
-                timestamp     = EXCLUDED.timestamp,
-                human_content = EXCLUDED.human_content,
-                ai_content    = EXCLUDED.ai_content
-        """
+              INSERT INTO exchanges (exchange_id, session_id, timestamp, human_content, ai_content)
+              VALUES (%s, %s, %s, %s, %s)
+              ON CONFLICT (exchange_id) DO UPDATE SET timestamp     = EXCLUDED.timestamp,
+                                                      human_content = EXCLUDED.human_content,
+                                                      ai_content    = EXCLUDED.ai_content \
+              """
         rows = [
             (
                 ex.exchange_id,
@@ -157,8 +158,7 @@ class PgGateway:
             """
             INSERT INTO threads (thread_id, session_id, thread_name, tags)
             VALUES (%s, %s, %s, %s)
-            ON CONFLICT (thread_id) DO UPDATE SET
-                tags = COALESCE(EXCLUDED.tags, threads.tags)
+            ON CONFLICT (thread_id) DO UPDATE SET tags = COALESCE(EXCLUDED.tags, threads.tags)
             """,
             (thread_id, session_id, thread.thread_name, tags_payload),
         )
@@ -177,9 +177,9 @@ class PgGateway:
                 )
 
     def upsert_fragment(
-        self,
-        fragment: Fragment,
-        embedding: np.ndarray | None = None,
+            self,
+            fragment: Fragment,
+            embedding: np.ndarray | None = None,
     ) -> None:
         """Upsert a Fragment + its junction rows.
 
@@ -195,11 +195,10 @@ class PgGateway:
             """
             INSERT INTO fragments (fragment_id, session_id, content, tags, embedding, timestamp)
             VALUES (%s, %s, %s, %s, %s, %s)
-            ON CONFLICT (fragment_id) DO UPDATE SET
-                content   = EXCLUDED.content,
-                tags      = EXCLUDED.tags,
-                embedding = COALESCE(EXCLUDED.embedding, fragments.embedding),
-                timestamp = EXCLUDED.timestamp
+            ON CONFLICT (fragment_id) DO UPDATE SET content   = EXCLUDED.content,
+                                                    tags      = EXCLUDED.tags,
+                                                    embedding = COALESCE(EXCLUDED.embedding, fragments.embedding),
+                                                    timestamp = EXCLUDED.timestamp
             """,
             (
                 fragment.fragment_id,
@@ -227,25 +226,22 @@ class PgGateway:
         """Upsert the single user profile row."""
         self.execute(
             """
-            INSERT INTO user_profiles (
-                user_id, response_style, explanation_depth, tone,
-                decision_style, learning_style, interests, pet_peeves,
-                active_projects, recurring_themes, human_label, ai_label, updated_at
-            )
+            INSERT INTO user_profiles (user_id, response_style, explanation_depth, tone,
+                                       decision_style, learning_style, interests, pet_peeves,
+                                       active_projects, recurring_themes, human_label, ai_label, updated_at)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (user_id) DO UPDATE SET
-                response_style    = EXCLUDED.response_style,
-                explanation_depth = EXCLUDED.explanation_depth,
-                tone              = EXCLUDED.tone,
-                decision_style    = EXCLUDED.decision_style,
-                learning_style    = EXCLUDED.learning_style,
-                interests         = EXCLUDED.interests,
-                pet_peeves        = EXCLUDED.pet_peeves,
-                active_projects   = EXCLUDED.active_projects,
-                recurring_themes  = EXCLUDED.recurring_themes,
-                human_label       = EXCLUDED.human_label,
-                ai_label          = EXCLUDED.ai_label,
-                updated_at        = EXCLUDED.updated_at
+            ON CONFLICT (user_id) DO UPDATE SET response_style    = EXCLUDED.response_style,
+                                                explanation_depth = EXCLUDED.explanation_depth,
+                                                tone              = EXCLUDED.tone,
+                                                decision_style    = EXCLUDED.decision_style,
+                                                learning_style    = EXCLUDED.learning_style,
+                                                interests         = EXCLUDED.interests,
+                                                pet_peeves        = EXCLUDED.pet_peeves,
+                                                active_projects   = EXCLUDED.active_projects,
+                                                recurring_themes  = EXCLUDED.recurring_themes,
+                                                human_label       = EXCLUDED.human_label,
+                                                ai_label          = EXCLUDED.ai_label,
+                                                updated_at        = EXCLUDED.updated_at
             """,
             (
                 profile.user_id,
@@ -272,15 +268,23 @@ class PgGateway:
 
         # Upsert insights
         sql = """
-              INSERT INTO insights (insight_id, label, body, verifier_status, confidence)
-              VALUES (%s, %s, %s, %s, %s)
+              INSERT INTO insights (insight_id, label, body, verifier_status, confidence, embedding)
+              VALUES (%s, %s, %s, %s, %s, %s)
               ON CONFLICT (insight_id) DO UPDATE SET label           = EXCLUDED.label,
                                                      body            = EXCLUDED.body,
                                                      verifier_status = EXCLUDED.verifier_status,
-                                                     confidence      = EXCLUDED.confidence; \
+                                                     confidence      = EXCLUDED.confidence,
+                                                     embedding       = COALESCE(EXCLUDED.embedding, insights.embedding); 
               """
         rows = [
-            (i.insight_id, i.label, i.body, i.verifier_status, i.confidence)
+            (
+                i.insight_id,
+                i.label,
+                i.body,
+                i.verifier_status,
+                i.label_confidence,
+                i.embedding or None,
+            )
             for i in insights
         ]
         with self._conn() as conn, conn.cursor() as cur:
@@ -311,7 +315,6 @@ class PgGateway:
                         f"upsert_insights junction: expected {expected_junction} rows, got {cur.rowcount}"
                     )
 
-
     def fetch_profile(self, user_id: str = "default") -> UserProfile:
         """Return the user_profiles row for *user_id* as a list (0 or 1 items).
 
@@ -320,9 +323,19 @@ class PgGateway:
         try:
             rows = self.fetch_rows(
                 """
-                SELECT user_id, response_style, explanation_depth, tone,
-                       decision_style, learning_style, interests, pet_peeves,
-                       active_projects, recurring_themes, human_label, ai_label, updated_at
+                SELECT user_id,
+                       response_style,
+                       explanation_depth,
+                       tone,
+                       decision_style,
+                       learning_style,
+                       interests,
+                       pet_peeves,
+                       active_projects,
+                       recurring_themes,
+                       human_label,
+                       ai_label,
+                       updated_at
                 FROM user_profiles
                 WHERE user_id = %s
                 """,
@@ -373,9 +386,9 @@ class PgGateway:
                     session_id=r["session_id"],
                     timestamp=r["timestamp"],
                     human=Turn(session_id=r["session_id"], role=Role.HUMAN, content=r["human_content"])
-                          if r["human_content"] else None,
+                    if r["human_content"] else None,
                     ai=Turn(session_id=r["session_id"], role=Role.AI, content=r["ai_content"])
-                       if r["ai_content"] else None,
+                    if r["ai_content"] else None,
                 ))
             return results
         except Exception:
@@ -390,16 +403,15 @@ class PgGateway:
         try:
             rows = self.fetch_rows(
                 """
-                SELECT
-                    t.thread_name,
-                    t.tags,
-                    COALESCE(
-                        array_agg(te.exchange_id ORDER BY te.position)
-                        FILTER (WHERE te.exchange_id IS NOT NULL),
-                        ARRAY[]::text[]
-                    ) AS exchange_ids
+                SELECT t.thread_name,
+                       t.tags,
+                       COALESCE(
+                                       array_agg(te.exchange_id ORDER BY te.position)
+                                       FILTER (WHERE te.exchange_id IS NOT NULL),
+                                       ARRAY []::text[]
+                       ) AS exchange_ids
                 FROM threads t
-                LEFT JOIN thread_exchanges te ON te.thread_id = t.thread_id
+                         LEFT JOIN thread_exchanges te ON te.thread_id = t.thread_id
                 WHERE t.session_id = %s
                 GROUP BY t.thread_id, t.thread_name, t.tags
                 ORDER BY t.thread_name
@@ -431,16 +443,19 @@ class PgGateway:
         except Exception:
             logger.exception("get_last_session_id failed")
             return None
-    
-    
-    def fetch_fragments(self, window_start: datetime | None = None, window_end: datetime | None = None) -> list[Fragment]:
-        """Load fragments from Postgres, optionally filtered by session.
 
+    def fetch_fragments_window(self, fetch_params: WindowParams | None = None) -> list[
+        Fragment]:
+        """Load fragments from Postgres, optionally filtered by session.
         Returns [] on miss or error.
         """
         try:
 
-            sql = f"""
+            window_start = fetch_params["window_start"] if fetch_params else None
+            window_end = fetch_params["window_end"] if fetch_params else None
+            limit = fetch_params["limit"] if fetch_params else INSIGHTS_FETCH_LIMIT
+
+            sql = """
                 SELECT
                     f.fragment_id,
                     f.embedding,
@@ -458,8 +473,21 @@ class PgGateway:
                   AND (%s is NULL or f.timestamp <= %s )
                 GROUP BY f.fragment_id, f.session_id, f.content, f.tags, f.timestamp
                 ORDER BY f.timestamp
+                LIMIT %s
             """
-            rows = self.fetch_rows(sql, (window_start, window_start, window_end, window_end ))
+            return self.fetch_fragments(sql, (window_start, window_start, window_end, window_end, limit))
+
+        except Exception:
+            logger.exception("fetch_fragments_window failed")
+            return []
+
+    def fetch_fragments(self, sql: str, params: tuple) -> list[Fragment]:
+        """Load fragments from Postgres
+
+        Returns [] on miss or error.
+        """
+        try:
+            rows = self.fetch_rows(sql, params)
             if not rows:
                 return []
             results = []
@@ -496,7 +524,7 @@ class PgGateway:
                                    FROM insights t
                                             LEFT JOIN insight_fragments te ON te.insight_id = t.insight_id
 
-                                     WHERE (%s IS NULL OR t.created_at >= %s)
+                                   WHERE (%s IS NULL OR t.created_at >= %s)
                                      AND (%s IS NULL OR t.created_at <= %s)
                                    GROUP BY t.insight_id, t.label, t.body, t.verifier_status, t.confidence, t.created_at
                                    ORDER BY t.created_at;
@@ -511,7 +539,7 @@ class PgGateway:
                     label=r["label"],
                     body=r["body"],
                     verifier_status=r["verifier_status"],
-                    confidence=r["confidence"],
+                    label_confidence=r["confidence"],
                     created_at=r["created_at"],
                     fragment_ids=list(r["fragment_ids"]) if r["fragment_ids"] else []
                 )
@@ -521,16 +549,15 @@ class PgGateway:
             logger.exception("fetch_insights failed for label=%s, to_date=%s", label, window_end)
             return []
 
-
     # ══════════════════════════════════════════════════════════════════════════
     # pgvector search
     # ══════════════════════════════════════════════════════════════════════════
 
     def search_similar(
-        self,
-        query_embedding: np.ndarray,
-        top_k: int = 5,
-        min_score: float = 0.3,
+            self,
+            query_embedding: np.ndarray,
+            top_k: int = 5,
+            min_score: float = 0.3,
     ) -> list[tuple[Fragment, float]]:
         """Top-k cosine-similar fragments.
 
@@ -539,24 +566,23 @@ class PgGateway:
         Exchange_ids are reconstructed from the fragment_exchanges junction.
         """
         sql = """
-            SELECT
-                f.fragment_id,
-                f.session_id,
-                f.content,
-                f.tags,
-                f.timestamp,
-                COALESCE(
-                    (SELECT array_agg(fe.exchange_id)
-                     FROM fragment_exchanges fe
-                     WHERE fe.fragment_id = f.fragment_id),
-                    ARRAY[]::text[]
-                ) AS exchange_ids,
-                1.0 - (f.embedding <=> %s::vector) / 2.0 AS score
-            FROM fragments f
-            WHERE f.embedding IS NOT NULL
-            ORDER BY f.embedding <=> %s::vector
-            LIMIT %s
-        """
+              SELECT f.fragment_id,
+                     f.session_id,
+                     f.content,
+                     f.tags,
+                     f.timestamp,
+                     COALESCE(
+                             (SELECT array_agg(fe.exchange_id)
+                              FROM fragment_exchanges fe
+                              WHERE fe.fragment_id = f.fragment_id),
+                             ARRAY []::text[]
+                     )                                        AS exchange_ids,
+                     1.0 - (f.embedding <=> %s::vector) / 2.0 AS score
+              FROM fragments f
+              WHERE f.embedding IS NOT NULL
+              ORDER BY f.embedding <=> %s::vector
+              LIMIT %s \
+              """
         try:
             rows = self.fetch_rows(sql, (query_embedding, query_embedding, top_k))
             if not rows:

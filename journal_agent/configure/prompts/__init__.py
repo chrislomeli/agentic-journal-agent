@@ -21,7 +21,7 @@ from journal_agent.configure.prompts import (
     intent_classifier,
     profile_scanner,
     socratic,
-    thread_classifier,
+    thread_classifier, verify_insights, label_clusters,
 )
 
 __all__ = ["get_prompt"]
@@ -40,6 +40,8 @@ _STATIC_REGISTRY: dict[str, str] = {
     PromptKey.THREAD_CLASSIFIER.value: thread_classifier.TEMPLATE,
     PromptKey.EXCHANGE_CLASSIFIER.value: exchange_classifier.TEMPLATE,
     PromptKey.FRAGMENT_EXTRACTOR.value: extractor.TEMPLATE,
+    PromptKey.VERIFY_INSIGHTS.value: verify_insights.TEMPLATE,
+    PromptKey.LABEL_CLUSTERS.value: label_clusters.TEMPLATE,
 }
 
 _TEMPLATE_REGISTRY: dict[str, PromptTemplateBuilder] = {
@@ -73,23 +75,3 @@ def get_prompt(key: str | PromptKey, state: JournalState | None = None) -> str:
         f"Unknown prompt key {lookup!r}."
     )
 
-# if __name__ == "__main__":
-#     from journal_agent.model.session import  UserProfile, ContextSpecification
-#     from journal_agent.model.session import  Status
-#     _state = JournalState(
-#         session_id="xyx",
-#         recent_messages=[],
-#         session_messages=[],
-#         transcript=[],
-#         threads=[],
-#         classified_threads=[],
-#         fragments=[],
-#         retrieved_history=[],
-#         context_specification=ContextSpecification(),  # nodes that need it run after intent_classifier sets it
-#         user_profile=UserProfile(),
-#         status=Status.IDLE,
-#         error_message=None,
-#     )
-#
-#     prompt = get_prompt(PromptKey.PROFILE_SCANNER, _state)
-#     print(prompt)

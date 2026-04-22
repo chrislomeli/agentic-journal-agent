@@ -28,6 +28,9 @@ from journal_agent.configure.settings import (
 # These constants are the starting values for ContextSpecification and
 # UserProfile fields.  They live here (not in settings.py) because they
 # are domain-level choices, not deployment/infra configuration.
+INSIGHTS_FETCH_LIMIT = 500
+MINIMUM_CLUSTER_LABEL_SCORE = 0.5
+MINIMUM_VERIFIER_SCORE = 0.5
 DEFAULT_RECENT_MESSAGES_COUNT = 5
 DEFAULT_SESSION_MESSAGES_COUNT = 10
 DEFAULT_RETRIEVED_HISTORY_COUNT = 5

@@ -12,7 +12,9 @@ inside the database.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 
+from journal_agent.graph.state import WindowParams
 from journal_agent.model.session import Fragment
 from journal_agent.stores.embedder import Embedder
 from journal_agent.stores.pg_gateway import PgGateway, get_pg_gateway
@@ -46,6 +48,6 @@ class PgFragmentRepository:
         query_vec = self._embedder.embed(query_text)
         return self._pg.search_similar(query_vec, top_k=top_k, min_score=min_relevance)
 
-    def load_all(self, user_id: str | None = None) -> list[Fragment]:
+    def load_window(self, fetch_params: WindowParams | None = None) -> list[Fragment]:
         """Return all fragments."""
-        return self._pg.fetch_fragments()
+        return self._pg.fetch_fragments_window(fetch_params)

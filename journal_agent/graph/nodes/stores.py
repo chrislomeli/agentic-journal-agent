@@ -114,3 +114,25 @@ def make_save_fragments(fragment_store: PgFragmentRepository) -> Callable[..., d
 
     return save_fragments
 
+
+def make_save_insights(fragment_store: PgFragmentRepository) -> Callable[..., dict]:
+    """Factory: persist Fragments via PgFragmentStore (handles both structured
+    persistence and vector indexing in a single call)."""
+
+    @node_trace("save_fragments")
+    def save_fragments(state: JournalState):
+        try:
+            fragment_store.save_fragments(state["fragments"])
+
+            return {
+                "status": Status.FRAGMENTS_SAVED
+            }
+
+        except Exception as e:
+            logger.exception("Failed to save fragments")
+            return {
+                "status": Status.ERROR,
+                "error_message": str(e),
+            }
+
+    return save_fragments

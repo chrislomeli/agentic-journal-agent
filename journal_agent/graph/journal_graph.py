@@ -20,13 +20,18 @@ end-of-session pipeline.
 
 import logging
 from collections.abc import Callable
+from datetime import datetime
+from typing import Coroutine, Any
 
+from dateutil.relativedelta import relativedelta
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from journal_agent.comms.human_chat import get_human_input
 from journal_agent.comms.llm_client import LLMClient
 from journal_agent.comms.llm_registry import LLMRegistry
+from journal_agent.configure.config_builder import INSIGHTS_FETCH_LIMIT
 from journal_agent.configure.context_builder import ContextBuilder, ContextBuildError
 from journal_agent.configure.prompts import get_prompt
 from journal_agent.graph.node_tracer import node_trace
@@ -41,8 +46,10 @@ from journal_agent.graph.nodes.stores import (
     make_save_classified_threads,
     make_save_fragments,
 )
+from journal_agent.graph.reflection_graph import build_reflection_graph
+from journal_agent.graph.routing import _route_base, goto
 from journal_agent.graph.state import (
-    JournalState,
+    JournalState, WindowParams,
 )
 from journal_agent.model.session import Role, Status
 from journal_agent.stores import (
@@ -70,6 +77,10 @@ def make_get_user_input(session_store: TranscriptStore) -> Callable[..., dict]:
             user_input = get_human_input()
             if user_input == "/quit":
                 return {"status": Status.COMPLETED}
+            if user_input == "/reflect":
+                return {"status": Status.REFLECT_REQUESTED}
+            if user_input == "/recall":
+                return {"status": Status.RECALL_REQUESTED}
 
             # add input to session store
             session_store.on_human_turn(
@@ -184,32 +195,63 @@ def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore, context
 
     return get_ai_response
 
+def make_reflect_node(reflection_graph) ->  Callable[..., Coroutine[Any, Any, dict]]:
+
+    @node_trace("reflect_node")
+    async def reflect_node(state: JournalState) -> dict:
+
+        reflection_input = {
+            "fetch_parameters" : state["fetch_parameters"],
+            "limit": INSIGHTS_FETCH_LIMIT,
+            "fragments": [],
+            "clusters": [],
+            "insights": [],
+            "verified_insights": [],
+            "latest_insights": [],
+            "status": Status.IDLE,
+            "error_message": None
+        }
+        result = await reflection_graph.ainvoke(reflection_input)
+        return {"latest_insights": result["verified_insights"]}
+
+    return reflect_node
+
+def make_recall_node(fragment_store: PgFragmentRepository) -> Callable[..., dict]:
+    """Factory: node that queries the fragment store for fragments similar
+    to the latest human message, enriched with intent-derived tags."""
+
+    @node_trace("recall_node")
+    def recall_node(state: JournalState) -> dict:
+        try:
+            fetch_params: WindowParams = state["fetch_parameters"]
+            insights = fragment_store.load_window(fetch_params)
+            return {"latest_insights": insights}
+
+        except Exception as e:
+            logger.exception("Failed to retrieve history")
+            return {
+                "status": Status.ERROR,
+                "error_message": str(e),
+            }
+
+    return recall_node
+
 # ── Routing ──────────────────────────────────────────────────────────────────
-
-
-def _route_base(state: JournalState, *, next_node: str, on_completion: str = END) -> str:
-    """Shared routing logic: ERROR → END, COMPLETED → *on_completion*, else → *next_node*."""
-    if state["status"] == Status.ERROR:
-        logger.warning(
-            "Routing to END (session_id=%s, error_message=%s)",
-            state.get("session_id", "unknown"),
-            state.get("error_message"),
-        )
-        return END
-    if state["status"] == Status.COMPLETED:
-        return on_completion
-    return next_node
-
-
-def goto(node: str, on_completion: str = END) -> Callable[..., str]:
-    """Generic router factory: go to *node* on PROCESSING, *on_completion* on COMPLETED, END on ERROR."""
-    def goto_node(state: JournalState) -> str:
-        return _route_base(state, next_node=node, on_completion=on_completion)
-    return goto_node
-
 
 def route_on_user_input(state: JournalState) -> str:
     """After user input: ERROR → END, COMPLETED → save_transcript, else → intent_classifier."""
+    # User requested end (/quit)
+    if state.get("status") == Status.END_REQUESTED:
+        return END
+    # User requested reflect (/reflect)
+    if state.get("status") == Status.REFLECT_REQUESTED:
+        return "reflect"
+
+    # User requested recall (/recall)
+    if state.get("status") == Status.RECALL_REQUESTED:
+        raise Exception("/recall not yet implemented")
+
+    # normal processing
     return _route_base(state, next_node="intent_classifier", on_completion="save_transcript")
 
 
@@ -240,9 +282,11 @@ def build_journal_graph(
         session_store: TranscriptStore,
         fragment_store: PgFragmentRepository,
         profile_store: UserProfileRepository,
+        reflection_graph: CompiledStateGraph,
         transcript_store: TranscriptRepository | None = None,
         thread_store: ThreadsRepository | None = None,
         classified_thread_store: ThreadsRepository | None = None,
+
 ):
     """Build and compile the journal conversation graph.
 
@@ -259,6 +303,7 @@ def build_journal_graph(
     conversation_llm = registry.get("conversation")
     classifier_llm = registry.get("classifier")
     extractor_llm = registry.get("extractor")
+
 
     # noinspection PyTypeChecker
     builder = StateGraph(JournalState)  # no_qa
@@ -280,6 +325,10 @@ def build_journal_graph(
     builder.add_node("save_threads", make_save_threads(store=thread_store))
     builder.add_node("save_classified_threads", make_save_classified_threads(store=classified_thread_store))
     builder.add_node("save_fragments", make_save_fragments(fragment_store=fragment_store))
+
+    # reflection
+    builder.add_node("reflect", make_reflect_node(reflection_graph))
+    builder.add_node("recall", make_recall_node(fragment_store=fragment_store))
 
     # Wiring
     builder.add_edge(START, "get_user_input")

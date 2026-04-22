@@ -6,6 +6,7 @@ from langchain_core.messages import BaseMessage
 from journal_agent.comms.llm_registry import build_llm_registry
 from journal_agent.configure.config_builder import LLM_ROLE_CONFIG, configure_environment, models
 from journal_agent.graph.journal_graph import build_journal_graph
+from journal_agent.graph.reflection_graph import build_reflection_graph
 from journal_agent.graph.state import JournalState
 from journal_agent.model.session import ContextSpecification, Status
 from journal_agent.stores import (
@@ -95,18 +96,24 @@ def main():
         user_profile=user_profile,
         status=Status.IDLE,
         error_message=None,
+        latest_insights=[],
+        fetch_parameters=None
     )
-    graph = build_journal_graph(
+
+    reflection_graph = build_reflection_graph(registry=registry, fragment_store=PgFragmentRepository())
+
+    journal_graph = build_journal_graph(
         registry=registry,
         session_store=session_store,
         fragment_store=fragment_store,
         profile_store=profile_store,
+        reflection_graph=reflection_graph,
         transcript_store=transcript_store,
         thread_store=thread_store,
         classified_thread_store=classified_thread_store,
     )
     try:
-        graph.invoke(initial_state)
+        journal_graph.invoke(initial_state)
 
     except KeyboardInterrupt:
         session_store.store_cache(session_id)

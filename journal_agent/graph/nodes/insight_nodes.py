@@ -8,11 +8,13 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from sklearn.cluster import HDBSCAN
 
 from journal_agent.comms.llm_client import LLMClient
+from journal_agent.configure.config_builder import MINIMUM_VERIFIER_SCORE, MINIMUM_CLUSTER_LABEL_SCORE
 from journal_agent.configure.prompts import get_prompt
 from journal_agent.graph.node_tracer import node_trace, logger
 from journal_agent.graph.nodes.classifiers import DEFAULT_LLM_CONCURRENCY
 from journal_agent.graph.state import ReflectionState
-from journal_agent.model.session import Cluster, Fragment, Status, Insight, PromptKey, InsightDraft
+from journal_agent.model.session import Cluster, Fragment, Status, Insight, PromptKey, InsightDraft, \
+    InsightVerifierScore, VerifierStatus
 from journal_agent.stores import PgFragmentRepository
 
 
@@ -22,7 +24,7 @@ def make_collect_window(
     @node_trace("generate_insights")
     def collect_window(state: ReflectionState) -> dict:
         try:
-            all_fragments = fragment_store.load_all()
+            all_fragments = fragment_store.load_window()
             return {"fragments": all_fragments}
         except Exception as e:
             logger.exception("Insight generation failed")
@@ -120,7 +122,7 @@ def make_label_clusters(llm: LLMClient, max_concurrency: int = DEFAULT_LLM_CONCU
                     return Insight(
                         label=draft.label,
                         body=draft.body,
-                        confidence=draft.confidence,
+                        label_confidence=draft.confidence,
                         fragment_ids=cluster.fragment_ids,
                     )
 
@@ -135,3 +137,75 @@ def make_label_clusters(llm: LLMClient, max_concurrency: int = DEFAULT_LLM_CONCU
             return {"status": Status.ERROR, "error_message": str(e)}
 
     return label_clusters
+
+
+def make_verify_citations(llm: LLMClient, max_concurrency: int = DEFAULT_LLM_CONCURRENCY) -> Callable[..., Coroutine[Any, Any, dict]]:
+    @node_trace("verify_citations")
+    async def verify_citations(state: ReflectionState) -> dict:
+        try:
+            system = SystemMessage(get_prompt(PromptKey.VERIFY_INSIGHTS))
+            structured_llm = llm.astructured(InsightVerifierScore)
+            sem = asyncio.Semaphore(max_concurrency)
+
+            fragments = state["fragments"]
+            insights = state["insights"]
+
+            async def worker(insight: Insight) -> Insight:
+                async with sem:
+                    cited_fragments = [f.content for f in fragments if f.fragment_id in insight.fragment_ids]
+                    cited_text = "\n\n".join(f"- {c}" for c in cited_fragments)
+                    payload = f"""
+                    INSIGHT BEING VERIFIED:
+    
+                    Label: {insight.label}
+                    Body:  {insight.body}
+                    
+                    FRAGMENTS (fragments cited as evidence):
+                    {cited_text}
+                    """
+
+                    human = HumanMessage(content=payload)
+                    score: InsightVerifierScore = await structured_llm.ainvoke([system, human])
+                    if not cited_fragments:
+                        return insight.model_copy(update={
+                            "verifier_status": VerifierStatus.FAILED,
+                            "verifier_score": 0.0,
+                            "verifier_comments": "No cited fragments found.",
+                        })
+                    return insight.model_copy(update={
+                        "verifier_score": score.verifier_score,
+                        "verifier_comments": score.verifier_comments,
+                        "verifier_status": VerifierStatus.VERIFIED if score.verifier_score >= MINIMUM_VERIFIER_SCORE else VerifierStatus.FAILED,
+                    })
+
+            verified_insights = await asyncio.gather(
+                *(worker(i) for i in insights)
+            )
+
+            return {"verified_insights": verified_insights}
+
+        except Exception as e:
+            logger.exception("verify_citations failed")
+            return {"status": Status.ERROR, "error_message": str(e)}
+
+    return verify_citations
+
+
+def make_format_result() -> Callable[..., dict]:
+    """Filter verified_insights to VERIFIED only and place them on the handoff slot
+    the parent graph reads (``latest_insights``). Deterministic — no LLM call."""
+
+    @node_trace("format_result")
+    def format_result(state: ReflectionState) -> dict:
+        try:
+            verified = [
+                i for i in state["verified_insights"]
+                if i.verifier_status == VerifierStatus.VERIFIED
+            ]
+            return {"latest_insights": verified}
+        except Exception as e:
+            logger.exception("format_result failed")
+            return {"status": Status.ERROR, "error_message": str(e)}
+
+    return format_result
+
