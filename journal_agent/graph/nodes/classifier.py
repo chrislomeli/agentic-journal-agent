@@ -35,7 +35,7 @@ from journal_agent.model.session import Status, UserProfile, PromptKey
 from journal_agent.model.session import ThreadSegmentList, ExchangeClassificationRequest, ThreadSegment, Exchange, \
     ThreadClassificationResponse, ExpandedThreadSegment, Fragment, \
     FragmentDraftList, ScoreCard, ContextSpecification
-from journal_agent.storage.protocols import ProfileStore
+from journal_agent.storage.repositories import UserProfileRepository
 
 logger = logging.getLogger(__name__)
 
@@ -263,7 +263,7 @@ def make_intent_classifier(llm: LLMClient, context_builder: ContextBuilder | Non
     return intent_classifier
 
 
-def make_profile_scanner(llm: LLMClient, profile_store: ProfileStore, context_builder: ContextBuilder | None = None) -> \
+def make_profile_scanner(llm: LLMClient, profile_store: UserProfileRepository, context_builder: ContextBuilder | None = None) -> \
 Callable[..., dict]:
     context_builder = context_builder or ContextBuilder()
 

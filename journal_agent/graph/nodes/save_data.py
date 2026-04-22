@@ -3,10 +3,10 @@
 Each ``make_save_*`` factory returns a LangGraph node that writes one
 pipeline artifact to storage and advances the status:
 
-    save_transcript           → ArtifactStore (transcripts)
-    save_threads              → ArtifactStore (threads)
-    save_classified_threads   → ArtifactStore (classified_threads)
-    save_fragments            → FragmentStore (JSONL + vector index in one call)
+    save_transcript           → TranscriptRepository
+    save_threads              → ThreadsRepository
+    save_classified_threads   → ThreadsRepository
+    save_fragments            → FragmentStore (vector index in one call)
 
 All nodes catch exceptions and return Status.ERROR so the graph can
 route to END gracefully instead of crashing.
@@ -21,24 +21,19 @@ from journal_agent.graph.state import (
 
 )
 from journal_agent.model.session import Status
-from journal_agent.storage.protocols import ArtifactStore, FragmentStore
-from journal_agent.storage.storage import JsonStore
+from journal_agent.storage.pg_fragment_store import PgFragmentStore
+from journal_agent.storage.repositories import TranscriptRepository, ThreadsRepository
 
 logger = logging.getLogger(__name__)
 
-def make_save_transcript(store: ArtifactStore | None = None) -> Callable[..., dict]:
-    """Factory: persist the raw Exchange transcript.
-
-    Accepts any ArtifactStore — JsonStore for local-only, or a write-through
-    wrapper that dual-writes to JSONL and Postgres.
-    """
-    store = store or JsonStore("transcripts")
+def make_save_transcript(store: TranscriptRepository) -> Callable[..., dict]:
+    """Factory: persist the raw Exchange transcript."""
 
     @node_trace("save_transcript")
     def save_transcript(state: JournalState) -> dict:
         try:
             session_id = state["session_id"]
-            store.save_session(session_id, state["transcript"])
+            store.save_collection(session_id, state["transcript"])
 
             return {
                 "status": Status.TRANSCRIPT_SAVED
@@ -54,15 +49,14 @@ def make_save_transcript(store: ArtifactStore | None = None) -> Callable[..., di
     return save_transcript
 
 
-def make_save_threads(store: ArtifactStore | None = None) -> Callable[..., dict]:
+def make_save_threads(store: ThreadsRepository) -> Callable[..., dict]:
     """Factory: persist decomposed ThreadSegments."""
-    store = store or JsonStore("threads")
 
     @node_trace("save_threads")
     def save_threads(state: JournalState) -> dict:
         try:
             session_id = state["session_id"]
-            store.save_session(session_id, state["threads"])
+            store.save_collection(session_id, state["threads"])
 
             return {
                 "status": Status.THREADS_SAVED
@@ -77,15 +71,14 @@ def make_save_threads(store: ArtifactStore | None = None) -> Callable[..., dict]
     return save_threads
 
 
-def make_save_classified_threads(store: ArtifactStore | None = None) -> Callable[..., dict]:
+def make_save_classified_threads(store: ThreadsRepository) -> Callable[..., dict]:
     """Factory: persist taxonomy-tagged ThreadSegments."""
-    store = store or JsonStore("classified_threads")
 
     @node_trace("save_classified_threads")
     def save_classified_threads(state: JournalState) -> dict:
         try:
             session_id = state["session_id"]
-            store.save_session(session_id, state["classified_threads"])
+            store.save_collection(session_id, state["classified_threads"])
 
             return {
                 "status": Status.CLASSIFIED_THREADS_SAVED
@@ -100,8 +93,8 @@ def make_save_classified_threads(store: ArtifactStore | None = None) -> Callable
     return save_classified_threads
 
 
-def make_save_fragments(fragment_store: FragmentStore) -> Callable[..., dict]:
-    """Factory: persist Fragments via FragmentStore (handles both structured
+def make_save_fragments(fragment_store: PgFragmentStore) -> Callable[..., dict]:
+    """Factory: persist Fragments via PgFragmentStore (handles both structured
     persistence and vector indexing in a single call)."""
 
     @node_trace("save_fragments")

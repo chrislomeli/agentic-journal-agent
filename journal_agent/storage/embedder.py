@@ -1,7 +1,7 @@
 """embedder.py — Local text embedding via fastembed.
 
 Wraps fastembed.TextEmbedding to produce numpy arrays compatible with the
-pgvector schema (vector(384), matching ChromaDB's default all-MiniLM-L6-v2).
+pgvector schema (vector(384), from sentence-transformers/all-MiniLM-L6-v2).
 
 fastembed uses ONNX Runtime — no PyTorch or GPU required.  The model is
 downloaded once on first use and cached by fastembed automatically.

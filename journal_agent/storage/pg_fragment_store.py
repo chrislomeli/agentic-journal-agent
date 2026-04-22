@@ -1,6 +1,5 @@
 """pg_fragment_store.py — pgvector-backed FragmentStore.
 
-Fully replaces ChromaFragmentStore when Postgres is enabled.
 Satisfies the FragmentStore protocol:
 
     save_fragments()    — embeds content + upserts to fragments + junctions
@@ -18,19 +17,16 @@ import logging
 
 from journal_agent.model.session import Fragment
 from journal_agent.storage.embedder import Embedder
-from journal_agent.storage.pg_store import PgStore, get_pg_store
+from journal_agent.storage.pg_gateway import PgGateway, get_pg_gateway
 
 logger = logging.getLogger(__name__)
 
 
 class PgFragmentStore:
-    """FragmentStore backed entirely by Postgres + pgvector.
+    """FragmentStore backed entirely by Postgres + pgvector."""
 
-    Injected into the graph the same way as ChromaFragmentStore.
-    """
-
-    def __init__(self, pg_store: PgStore | None = None, embedder: Embedder | None = None):
-        self._pg = pg_store or get_pg_store()
+    def __init__(self, pg_gateway: PgGateway | None = None, embedder: Embedder | None = None):
+        self._pg = pg_gateway or get_pg_gateway()
         self._embedder = embedder or Embedder()
 
     # ── FragmentStore protocol ─────────────────────────────────────────────────

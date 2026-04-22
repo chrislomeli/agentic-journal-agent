@@ -1,21 +1,20 @@
-"""Layer 7 tests — Storage: JsonStore, TranscriptStore, to_messages.
+"""Layer 7 tests — Storage: JsonlGateway, TranscriptStore, exchanges_to_messages.
 
 Mocking strategy:
-- JsonStore / TranscriptStore: monkeypatch resolve_project_root → tmp_path
-
-VectorStore tests live in test_vector_store.py (separate file because
-vector_store.py imports chromadb at module level).
+- JsonlGateway / TranscriptStore: monkeypatch resolve_project_root → tmp_path
 """
 
 import time
 from datetime import datetime
 
 import pytest
+from unittest.mock import MagicMock
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from journal_agent.model.session import Exchange, Role, Turn
-from journal_agent.storage.exchange_store import TranscriptStore, to_messages
-from journal_agent.storage.storage import JsonStore
+from journal_agent.storage.transcript_cache import TranscriptStore
+from journal_agent.storage.jsonl_gateway import JsonlGateway
+from journal_agent.storage.repositories import TranscriptRepository, exchanges_to_messages
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -33,29 +32,33 @@ def make_exchange(session_id: str = "s1") -> Exchange:
 @pytest.fixture
 def json_store(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        "journal_agent.storage.storage.resolve_project_root",
+        "journal_agent.storage.jsonl_gateway.resolve_project_root",
         lambda: tmp_path,
     )
-    return JsonStore("transcripts")
+    return JsonlGateway("transcripts")
 
 
 @pytest.fixture
 def transcript_store(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        "journal_agent.storage.storage.resolve_project_root",
+        "journal_agent.storage.jsonl_gateway.resolve_project_root",
         lambda: tmp_path,
     )
-    return TranscriptStore()
+    jsonl = JsonlGateway("transcripts")
+    pg = MagicMock()
+    pg.get_last_session_id.return_value = None
+    repo = TranscriptRepository(jsonl, pg)
+    return TranscriptStore(repository=repo)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# JsonStore — file I/O
+# JsonlGateway — file I/O
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class TestJsonStore:
+class TestJsonlGateway:
     def test_save_then_load_round_trips_exchanges(self, json_store):
         exchange = make_exchange("sess-1")
-        json_store.save_session("sess-1", [exchange])
+        json_store.save_json("sess-1", [exchange])
         loaded = json_store.load_session("sess-1")
         assert loaded is not None
         assert len(loaded) == 1
@@ -66,8 +69,8 @@ class TestJsonStore:
     def test_save_appends_to_existing_file(self, json_store):
         e1 = make_exchange("sess-a")
         e2 = make_exchange("sess-a")
-        json_store.save_session("sess-a", [e1])
-        json_store.save_session("sess-a", [e2])
+        json_store.save_json("sess-a", [e1])
+        json_store.save_json("sess-a", [e2])
         loaded = json_store.load_session("sess-a")
         assert len(loaded) == 2
 
@@ -76,8 +79,8 @@ class TestJsonStore:
         assert result is None
 
     def test_load_returns_none_for_empty_file(self, json_store):
-        # save_session with empty list writes nothing
-        json_store.save_session("empty-sess", [])
+        # save_json with empty list writes nothing
+        json_store.save_json("empty-sess", [])
         result = json_store.load_session("empty-sess")
         assert result is None
 
@@ -85,56 +88,56 @@ class TestJsonStore:
         assert json_store.get_last_session_id() is None
 
     def test_get_last_session_id_returns_stem_of_newest_file(self, json_store):
-        json_store.save_session("old-session", [make_exchange()])
+        json_store.save_json("old-session", [make_exchange()])
         time.sleep(0.01)
-        json_store.save_session("new-session", [make_exchange()])
+        json_store.save_json("new-session", [make_exchange()])
         latest = json_store.get_last_session_id()
         assert latest == "new-session"
 
     def test_exchange_ids_survive_round_trip(self, json_store):
         exchange = make_exchange("s1")
-        json_store.save_session("s1", [exchange])
+        json_store.save_json("s1", [exchange])
         loaded = json_store.load_session("s1")
         assert loaded[0].exchange_id == exchange.exchange_id
 
     def test_save_creates_directory_if_absent(self, tmp_path, monkeypatch):
         monkeypatch.setattr(
-            "journal_agent.storage.storage.resolve_project_root",
+            "journal_agent.storage.jsonl_gateway.resolve_project_root",
             lambda: tmp_path,
         )
-        store = JsonStore("brand-new-folder")
-        store.save_session("s1", [make_exchange()])
+        store = JsonlGateway("brand-new-folder")
+        store.save_json("s1", [make_exchange()])
         assert (tmp_path / "data" / "brand-new-folder" / "s1.jsonl").exists()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# to_messages — pure function
+# exchanges_to_messages — pure function
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class TestToMessages:
     def test_human_turn_becomes_human_message(self):
         exchange = make_exchange()
-        messages = to_messages([exchange])
+        messages = exchanges_to_messages([exchange])
         assert any(isinstance(m, HumanMessage) and m.content == "hello" for m in messages)
 
     def test_ai_turn_becomes_ai_message(self):
         exchange = make_exchange()
-        messages = to_messages([exchange])
+        messages = exchanges_to_messages([exchange])
         assert any(isinstance(m, AIMessage) and m.content == "response" for m in messages)
 
     def test_order_is_human_then_ai_per_exchange(self):
         exchange = make_exchange()
-        messages = to_messages([exchange])
+        messages = exchanges_to_messages([exchange])
         assert isinstance(messages[0], HumanMessage)
         assert isinstance(messages[1], AIMessage)
 
     def test_multiple_exchanges_produces_interleaved_messages(self):
         exchanges = [make_exchange(), make_exchange()]
-        messages = to_messages(exchanges)
+        messages = exchanges_to_messages(exchanges)
         assert len(messages) == 4
 
     def test_empty_exchanges_returns_empty_list(self):
-        assert to_messages([]) == []
+        assert exchanges_to_messages([]) == []
 
     def test_system_role_becomes_system_message(self):
         exchange = Exchange(
@@ -142,7 +145,7 @@ class TestToMessages:
             human=Turn(session_id="s1", role=Role.SYSTEM, content="sys"),
             ai=Turn(session_id="s1", role=Role.AI, content="ok"),
         )
-        messages = to_messages([exchange])
+        messages = exchanges_to_messages([exchange])
         assert isinstance(messages[0], SystemMessage)
 
 
@@ -186,15 +189,15 @@ class TestTranscriptStore:
         transcript_store._exchanges.append(make_exchange())
         transcript_store.store_cache("s1")
         assert transcript_store._exchanges == []
-        # verify it was actually persisted
-        assert transcript_store._session_store.load_session("s1") is not None
+        # verify JSONL was written through the repository
+        assert transcript_store._repository._jsonl.load_session("s1") is not None
 
     def test_store_cache_flushes_buffered_turns_to_disk(self, transcript_store):
         transcript_store.on_human_turn("s1", Role.HUMAN, "hello")
         transcript_store.on_ai_turn("s1", Role.AI, "hi")
         transcript_store.store_cache("s1")
         assert transcript_store._exchanges == []
-        loaded = transcript_store._session_store.load_session("s1")
+        loaded = transcript_store._repository._jsonl.load_session("s1")
         assert loaded is not None
         assert len(loaded) == 1
 

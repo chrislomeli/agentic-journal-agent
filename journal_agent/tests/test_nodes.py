@@ -4,26 +4,15 @@ Mocking strategy:
 - Classifier nodes: stub LLMClient whose .structured()/.astructured()
   returns a mock runnable producing fixed Pydantic instances.
   Async nodes (thread_classifier, fragment_extractor) use .ainvoke().
-- Save nodes: monkeypatch resolve_project_root → tmp_path for JsonStore;
+- Save nodes: monkeypatch resolve_project_root → tmp_path for JsonlGateway;
   MagicMock for FragmentStore.
-- chromadb stub: chroma_fragment_store.py imports chromadb at module
-  level; we inject a sys.modules stub if chromadb is absent.
 """
 
-import asyncio
-import importlib.util
-import sys
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from langchain_core.messages import HumanMessage
-
-# ── chromadb stub (needed because chroma_fragment_store.py imports VectorStore) ─
-if importlib.util.find_spec("chromadb") is None:
-    _stub = MagicMock()
-    _stub.PersistentClient = MagicMock()
-    sys.modules.setdefault("chromadb", _stub)
 
 from journal_agent.comms.llm_client import LLMClient
 from journal_agent.graph.nodes.classifier import (
@@ -292,45 +281,40 @@ class TestIntentClassifier:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class TestSaveTranscript:
-    def test_saves_transcript_to_json_store(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "journal_agent.storage.storage.resolve_project_root", lambda: tmp_path
-        )
+    def test_saves_transcript_to_mock_store(self):
+        mock_store = MagicMock()
         exchange = _make_exchange()
-        node = make_save_transcript()
+        node = make_save_transcript(store=mock_store)
         result = node(_base_state(transcript=[exchange]))
         assert result["status"] == Status.TRANSCRIPT_SAVED
-        assert (tmp_path / "data" / "transcripts" / "test-session.jsonl").exists()
+        mock_store.save_collection.assert_called_once()
 
     def test_returns_error_on_exception(self):
         broken_store = MagicMock()
-        broken_store.save_session.side_effect = RuntimeError("disk full")
+        broken_store.save_collection.side_effect = RuntimeError("disk full")
         node = make_save_transcript(store=broken_store)
         result = node(_base_state(transcript=[_make_exchange()]))
         assert result["status"] == Status.ERROR
 
 
 class TestSaveThreads:
-    def test_saves_threads_to_json_store(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "journal_agent.storage.storage.resolve_project_root", lambda: tmp_path
-        )
+    def test_saves_threads_to_mock_store(self):
+        mock_store = MagicMock()
         thread = _make_thread(["e1"])
-        node = make_save_threads()
+        node = make_save_threads(store=mock_store)
         result = node(_base_state(threads=[thread]))
         assert result["status"] == Status.THREADS_SAVED
-        assert (tmp_path / "data" / "threads" / "test-session.jsonl").exists()
+        mock_store.save_collection.assert_called_once()
 
 
 class TestSaveClassifiedThreads:
-    def test_saves_classified_threads_to_json_store(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "journal_agent.storage.storage.resolve_project_root", lambda: tmp_path
-        )
+    def test_saves_classified_threads_to_mock_store(self):
+        mock_store = MagicMock()
         thread = _make_thread(["e1"])
-        node = make_save_classified_threads()
+        node = make_save_classified_threads(store=mock_store)
         result = node(_base_state(classified_threads=[thread]))
         assert result["status"] == Status.CLASSIFIED_THREADS_SAVED
+        mock_store.save_collection.assert_called_once()
 
 
 class TestSaveFragments:

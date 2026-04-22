@@ -5,7 +5,7 @@ Defines every data structure that flows through the LangGraph:
     Turn → Exchange → ThreadSegment → ExpandedThreadSegment → Fragment
             │                                                    │
             └──  raw conversation pairs                          └──  searchable embeddings
-                 stored as JSONL                                      stored in ChromaDB
+                 stored as JSONL + Postgres                           stored in Postgres + pgvector
 
 Classification models (ScoreCard, Domain, ContextSpecification) drive
 per-turn routing: which prompt to use, how much history to retrieve, etc.

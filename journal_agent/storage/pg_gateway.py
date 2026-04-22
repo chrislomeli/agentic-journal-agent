@@ -1,6 +1,6 @@
-"""pg_store.py — Postgres + pgvector access layer.
+"""pg_gateway.py — Postgres + pgvector access layer.
 
-Provides PgStore, a psycopg3 connection-pool wrapper with two tiers of helpers:
+Provides PgGateway, a psycopg3 connection-pool wrapper with two tiers of helpers:
 
     Tier 1 — raw SQL primitives:
         fetch_rows()        — SELECT → list[dict]
@@ -42,15 +42,15 @@ from journal_agent.model.session import Exchange, Fragment, Role, Tag, ThreadSeg
 
 logger = logging.getLogger(__name__)
 
-# Must match data/schema.sql vector(N). 384 = ChromaDB's default
-# sentence-transformer (all-MiniLM-L6-v2). Change both if you swap models.
+# Must match data/schema.sql vector(N). 384 = sentence-transformers/all-MiniLM-L6-v2
+# (the fastembed default used by Embedder). Change both if you swap models.
 EMBEDDING_DIM = 384
 
 
-class PgStore:
+class PgGateway:
     """Postgres + pgvector access layer backed by a connection pool.
 
-    Injected the same way as VectorStore — create once, share across graph nodes.
+    Create once at app startup and share across graph nodes.
     """
 
     def __init__(self, min_size: int = 2, max_size: int = 10):
@@ -68,7 +68,7 @@ class PgStore:
     def open(self) -> None:
         """Open the pool. Call once at app startup."""
         self._pool.open(wait=True)
-        logger.info("PgStore pool open (min=%d max=%d)", self._pool.min_size, self._pool.max_size)
+        logger.info("PgGateway pool open (min=%d max=%d)", self._pool.min_size, self._pool.max_size)
 
     def close(self) -> None:
         """Drain the pool. Call at app shutdown."""
@@ -183,9 +183,8 @@ class PgStore:
     ) -> None:
         """Upsert a Fragment + its junction rows.
 
-        `embedding` is optional — Phase 10 write-through leaves it NULL because
-        Chroma is still the source of truth for search. Populate later when
-        Postgres takes over retrieval.
+        `embedding` is optional — callers that don't need vector search (e.g.
+        backfills) can pass None and the column is left NULL.
         """
         self.ensure_session(fragment.session_id)
         tags_payload = (
@@ -313,7 +312,7 @@ class PgStore:
                     )
 
 
-    def fetch_profile(self, user_id: str = "default") -> list[UserProfile]:
+    def fetch_profile(self, user_id: str = "default") -> UserProfile:
         """Return the user_profiles row for *user_id* as a list (0 or 1 items).
 
         Returns [] on miss or error so callers can do `rows[0] if rows else None`.
@@ -332,7 +331,7 @@ class PgStore:
             if not rows:
                 return []
             r = rows[0]
-            return [UserProfile(
+            return UserProfile(
                 response_style=r["response_style"],
                 explanation_depth=r["explanation_depth"],
                 tone=r["tone"],
@@ -345,7 +344,7 @@ class PgStore:
                 human_label=r["human_label"],
                 ai_label=r["ai_label"],
                 updated_at=r["updated_at"],
-            )]
+            )
         except Exception:
             logger.exception("fetch_profile failed for user_id=%s", user_id)
             return []
@@ -583,13 +582,13 @@ class PgStore:
 
 # ── Module-level singleton (lazy) ──────────────────────────────────────────────
 
-_store: PgStore | None = None
+_gateway: PgGateway | None = None
 
 
-def get_pg_store() -> PgStore:
-    """Return the module-level PgStore singleton, opening the pool on first call."""
-    global _store
-    if _store is None:
-        _store = PgStore()
-        _store.open()
-    return _store
+def get_pg_gateway() -> PgGateway:
+    """Return the module-level PgGateway singleton, opening the pool on first call."""
+    global _gateway
+    if _gateway is None:
+        _gateway = PgGateway()
+        _gateway.open()
+    return _gateway

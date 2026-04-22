@@ -45,7 +45,9 @@ from journal_agent.graph.state import (
     JournalState,
 )
 from journal_agent.model.session import Role, Status
-from journal_agent.storage.protocols import ArtifactStore, FragmentStore, ProfileStore, SessionStore
+from journal_agent.storage.pg_fragment_store import PgFragmentStore
+from journal_agent.storage.repositories import TranscriptRepository, ThreadsRepository, UserProfileRepository
+from journal_agent.storage.transcript_cache import TranscriptStore
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +55,7 @@ logger = logging.getLogger(__name__)
 # ── Graph builder ─────────────────────────────────────────────────────────────
 
 
-def make_get_user_input(session_store: SessionStore) -> Callable[..., dict]:
+def make_get_user_input(session_store: TranscriptStore) -> Callable[..., dict]:
     """Factory: node that reads console input, records the human turn, and
     returns a HumanMessage to append to session_messages."""
     @node_trace("get_user_input")
@@ -87,7 +89,7 @@ def make_get_user_input(session_store: SessionStore) -> Callable[..., dict]:
     return get_user_input
 
 
-def make_retrieve_history(fragment_store: FragmentStore, context_builder: ContextBuilder | None = None) -> Callable[..., dict]:
+def make_retrieve_history(fragment_store: PgFragmentStore, context_builder: ContextBuilder | None = None) -> Callable[..., dict]:
     """Factory: node that queries the fragment store for fragments similar
     to the latest human message, enriched with intent-derived tags."""
     context_builder = context_builder or ContextBuilder()
@@ -124,7 +126,7 @@ def make_retrieve_history(fragment_store: FragmentStore, context_builder: Contex
     return retrieve_history
 
 
-def make_get_ai_response(llm: LLMClient, session_store: SessionStore, context_builder: ContextBuilder | None = None) -> Callable[..., dict]:
+def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore, context_builder: ContextBuilder | None = None) -> Callable[..., dict]:
     """Factory: node that assembles context, calls the conversation LLM,
     records the AI turn, and prints the response to the console."""
     context_builder = context_builder or ContextBuilder()
@@ -231,12 +233,12 @@ def route_on_profile(state: JournalState) -> str:
 
 def build_journal_graph(
         registry: LLMRegistry,
-        session_store: SessionStore,
-        fragment_store: FragmentStore,
-        profile_store: ProfileStore,
-        transcript_store: ArtifactStore | None = None,
-        thread_store: ArtifactStore | None = None,
-        classified_thread_store: ArtifactStore | None = None,
+        session_store: TranscriptStore,
+        fragment_store: PgFragmentStore,
+        profile_store: UserProfileRepository,
+        transcript_store: TranscriptRepository | None = None,
+        thread_store: ThreadsRepository | None = None,
+        classified_thread_store: ThreadsRepository | None = None,
 ):
     """Build and compile the journal conversation graph.
 

@@ -1,10 +1,11 @@
-"""storage.py — JSON-lines persistence for session artifacts.
+"""jsonl_gateway.py — JSON-lines access layer for session artifacts.
 
-Provides JsonStore, a simple append-only store that writes Pydantic models
-as one-JSON-object-per-line (.jsonl) files under ``<project-root>/data/<folder>/``.
+Provides JsonlGateway, a simple append-only access layer that writes Pydantic
+models as one-JSON-object-per-line (.jsonl) files under
+``<project-root>/data/<folder>/``.
 
 Each pipeline artifact (transcripts, threads, classified_threads, fragments)
-gets its own JsonStore instance with a different folder name.
+gets its own JsonlGateway instance with a different folder name.
 
 The project root is resolved via the JOURNAL_AGENT_ROOT env var or by
 walking up from this file to find pyproject.toml.
@@ -22,11 +23,11 @@ from journal_agent.storage.utils import resolve_project_root
 T = TypeVar("T", bound=BaseModel)
 
 
-class JsonStore:
-    """Append-only JSONL store for Pydantic models.
+class JsonlGateway:
+    """Append-only JSONL access layer for Pydantic models.
 
     Data lives at ``<project-root>/data/<folder>/<session_id>.jsonl``.
-    Each call to ``save_session`` appends; ``load_session`` reads all lines back.
+    Each call to ``save_json`` appends; ``load_session`` reads all lines back.
     """
 
     def __init__(self, folder: str = "sessions"):
@@ -49,7 +50,7 @@ class JsonStore:
         except ValueError:
             return None
 
-    def save_session(self, session_id: str, exchanges: list[BaseModel]):
+    def save_json(self, session_id: str, exchanges: list[BaseModel]):
         if not exchanges:
             return
 

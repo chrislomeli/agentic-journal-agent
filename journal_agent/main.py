@@ -8,16 +8,14 @@ from journal_agent.configure.config_builder import LLM_ROLE_CONFIG, configure_en
 from journal_agent.graph.graph import build_journal_graph
 from journal_agent.graph.state import JournalState
 from journal_agent.model.session import ContextSpecification, Status, UserProfile
-from journal_agent.storage.chroma_fragment_store import ChromaFragmentStore
-from journal_agent.storage.exchange_store import TranscriptStore
+from journal_agent.storage.transcript_cache import TranscriptStore
 from journal_agent.storage.pg_fragment_store import PgFragmentStore
-from journal_agent.storage.pg_store import get_pg_store
-from journal_agent.storage.profile_store import UserProfileStore
-from journal_agent.storage.storage import JsonStore
-from journal_agent.storage.write_through import (
-    WriteThroughProfileStore,
-    WriteThroughThreadStore,
-    WriteThroughTranscriptStore,
+from journal_agent.storage.jsonl_gateway import JsonlGateway
+from journal_agent.storage.pg_gateway import get_pg_gateway
+from journal_agent.storage.repositories import (
+    UserProfileRepository,
+    ThreadsRepository,
+    TranscriptRepository,
 )
 
 
@@ -26,37 +24,22 @@ from journal_agent.storage.write_through import (
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def _build_stores(enable_postgres: bool):
+def _build_stores():
     """Return (session_store, fragment_store, profile_store,
              transcript_store, thread_store, classified_thread_store).
 
-    When Postgres is disabled, the last three are None and the save nodes use
-    their default local JsonStores — behavior matches pre-refactor.
-    When enabled, every write path fans out to JSONL/Chroma AND Postgres.
+    Every write path fans out to JSONL and Postgres.
     """
-    profile_store_local = UserProfileStore()
+    pg = get_pg_gateway()
 
-    if not enable_postgres:
-        return (
-            TranscriptStore(),
-            ChromaFragmentStore(),
-            profile_store_local,
-            None,
-            None,
-            None,
-        )
+    transcript_store = TranscriptRepository(JsonlGateway("transcripts"), pg)
+    thread_store = ThreadsRepository(JsonlGateway("threads"), pg)
+    classified_thread_store = ThreadsRepository(JsonlGateway("classified_threads"), pg)
+    fragment_store = PgFragmentStore(pg_gateway=pg)
+    profile_store = UserProfileRepository(JsonlGateway("user_profile"), pg)
 
-    pg = get_pg_store()
-
-    transcript_store = WriteThroughTranscriptStore(JsonStore("transcripts"), pg)
-    thread_store = WriteThroughThreadStore(JsonStore("threads"), pg)
-    classified_thread_store = WriteThroughThreadStore(JsonStore("classified_threads"), pg)
-    fragment_store = PgFragmentStore(pg_store=pg)
-    profile_store = WriteThroughProfileStore(profile_store_local, pg)
-
-    # TranscriptStore holds its own session_store for the KeyboardInterrupt
-    # flush path — inject the write-through wrapper so that path also dual-writes.
-    session_store = TranscriptStore(session_store=transcript_store)
+    # TranscriptStore is the pure buffer; repository handles persistence + conversion.
+    session_store = TranscriptStore(repository=transcript_store)
 
     return (
         session_store,
@@ -90,7 +73,7 @@ def main():
         transcript_store,
         thread_store,
         classified_thread_store,
-    ) = _build_stores(enable_postgres=settings.enable_postgres)
+    ) = _build_stores()
 
     # user profile
     user_profile = profile_store.load_profile()
