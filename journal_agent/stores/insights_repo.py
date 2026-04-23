@@ -39,6 +39,5 @@ class InsightsRepository:
         self._jsonl.save_json(file_name, items)
         self._pg.upsert_insights(items)
 
-    def load_insights(self, search_label: str | None = None, date_cutoff: datetime | None = None) -> list[Insight] | None:
-        rows = self._pg.fetch_insights(search_label, date_cutoff)
-        return rows or None
+    def load_insights(self, window_start: datetime | None = None, window_end: datetime | None = None) -> list[Insight]:
+        return self._pg.fetch_insights(window_start, window_end) or []

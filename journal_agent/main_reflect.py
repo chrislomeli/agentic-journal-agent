@@ -1,4 +1,5 @@
 """Entry point for the interactive journal agent."""
+import asyncio
 from uuid import uuid4
 
 from langchain_core.messages import BaseMessage
@@ -24,7 +25,6 @@ from journal_agent.stores import (
 # ═══════════════════════════════════════════════════════════════════════════════
 # SECTION 1: STORE WIRING
 # ═══════════════════════════════════════════════════════════════════════════════
-
 
 def _build_stores():
     """Return (session_store, fragment_store, profile_store,
@@ -60,7 +60,7 @@ def _build_stores():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def main():
+async def main():
     """Configure dependencies, build the graph, and run one interactive session."""
     settings = configure_environment()
 
@@ -81,28 +81,28 @@ def main():
     ) = _build_stores()
 
     # user profile
-    user_profile = profile_store.load_profile()
+    # user_profile = profile_store.load_profile()
 
     # previously stored messages — assumes transcripts are retrievable
-    seed_context: list[BaseMessage] = session_store.retrieve_transcript()
+    # seed_context: list[BaseMessage] = session_store.retrieve_transcript()
 
     session_id = str(uuid4())
-    initial_state = JournalState(
-        session_id=session_id,
-        recent_messages=seed_context,
-        session_messages=[],
-        transcript=[],
-        threads=[],
-        classified_threads=[],
-        fragments=[],
-        retrieved_history=[],
-        context_specification=ContextSpecification(),
-        user_profile=user_profile,
-        status=Status.IDLE,
-        error_message=None,
-        latest_insights=[],
-        fetch_parameters=None
-    )
+    # initial_state = JournalState(
+    #     session_id=session_id,
+    #     recent_messages=seed_context,
+    #     session_messages=[],
+    #     transcript=[],
+    #     threads=[],
+    #     classified_threads=[],
+    #     fragments=[],
+    #     retrieved_history=[],
+    #     context_specification=ContextSpecification(),
+    #     user_profile=user_profile,
+    #     status=Status.IDLE,
+    #     error_message=None,
+    #     latest_insights=[],
+    #     fetch_parameters=None
+    # )
 
     reflection_graph = build_reflection_graph(
         registry=registry,
@@ -110,19 +110,20 @@ def main():
         insights_repo=insights_repo,
     )
 
-    journal_graph = build_journal_graph(
-        registry=registry,
-        session_store=session_store,
-        fragment_store=fragment_store,
-        profile_store=profile_store,
-        insights_repo=insights_repo,
-        reflection_graph=reflection_graph,
-        transcript_store=transcript_store,
-        thread_store=thread_store,
-        classified_thread_store=classified_thread_store,
-    )
+    reflection_input = {
+        "fetch_parameters": {},
+        "fragments": [],
+        "clusters": [],
+        "insights": [],
+        "verified_insights": [],
+        "latest_insights": [],
+        "status": Status.IDLE,
+        "error_message": None,
+    }
+    result = await reflection_graph.ainvoke(reflection_input)
+    return {"latest_insights": result["latest_insights"], "status": Status.PROCESSING}
     try:
-        journal_graph.invoke(initial_state)
+        reflection_graph.invoke(initial_state)
 
     except KeyboardInterrupt:
         session_store.store_cache(session_id)
@@ -135,4 +136,4 @@ def main():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

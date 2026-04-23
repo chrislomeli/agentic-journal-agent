@@ -21,10 +21,10 @@ from journal_agent.stores import PgFragmentRepository
 def make_collect_window(
         fragment_store: PgFragmentRepository,
 ) -> Callable[..., dict]:
-    @node_trace("generate_insights")
+    @node_trace("collect_window")
     def collect_window(state: ReflectionState) -> dict:
         try:
-            all_fragments = fragment_store.load_window()
+            all_fragments = fragment_store.load_window(state.get("fetch_parameters"))
             return {"fragments": all_fragments}
         except Exception as e:
             logger.exception("Insight generation failed")
@@ -80,6 +80,19 @@ def make_cluster_fragments() -> Callable[..., dict]:
             for cluster in clusters:
                 score_cluster(cluster, frag_by_id)
 
+            # diagnostic — remove when clustering is stable
+            noise_count = sum(1 for label in hdb.labels_ if label == -1)
+            logger.info("HDBSCAN: %d fragments → %d clusters, %d noise", len(fragments), len(clusters), noise_count)
+            for i, cluster in enumerate(clusters):
+                frags = [frag_by_id[fid] for fid in cluster.fragment_ids]
+                tags = sorted({t.tag for f in frags for t in f.tags})
+                logger.info(
+                    "  cluster %d  size=%d  score=%.1f  tags=%s",
+                    i, len(frags), cluster.score, tags,
+                )
+                for f in frags:
+                    logger.info("    [%s] %s", f.fragment_id, f.content[:80])
+
             return {"clusters": clusters}
         except Exception as e:
             logger.exception("Cluster fragments failed")
@@ -130,7 +143,11 @@ def make_label_clusters(llm: LLMClient, max_concurrency: int = DEFAULT_LLM_CONCU
                 *(label_cluster(c) for c in clusters)
             )
 
-            return {"insights": list(insights)}
+            print("\nVerified insights:\n")
+            for insight in insights:
+                print(json.dumps(insight.model_dump(), indent=2, default=str))
+
+            return {"insights": list(insights)  }
 
         except Exception as e:
             logger.exception("label_clusters failed")
@@ -181,6 +198,10 @@ def make_verify_citations(llm: LLMClient, max_concurrency: int = DEFAULT_LLM_CON
             verified_insights = await asyncio.gather(
                 *(worker(i) for i in insights)
             )
+
+            print("\nVerified insights:\n")
+            for insight in verified_insights:
+                print(json.dumps(insight.model_dump(), indent=2, default=str))
 
             return {"verified_insights": verified_insights}
 

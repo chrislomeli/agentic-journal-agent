@@ -16,12 +16,9 @@ import logging
 from collections.abc import Callable
 
 from journal_agent.graph.node_tracer import node_trace
-from journal_agent.graph.state import (
-    JournalState,
-
-)
+from journal_agent.graph.state import JournalState, ReflectionState
 from journal_agent.model.session import Status
-from journal_agent.stores import PgFragmentRepository, TranscriptRepository, ThreadsRepository
+from journal_agent.stores import PgFragmentRepository, TranscriptRepository, ThreadsRepository, InsightsRepository
 
 logger = logging.getLogger(__name__)
 
@@ -115,24 +112,16 @@ def make_save_fragments(fragment_store: PgFragmentRepository) -> Callable[..., d
     return save_fragments
 
 
-def make_save_insights(fragment_store: PgFragmentRepository) -> Callable[..., dict]:
-    """Factory: persist Fragments via PgFragmentStore (handles both structured
-    persistence and vector indexing in a single call)."""
+def make_save_insights(insights_repo: InsightsRepository) -> Callable[..., dict]:
+    """Factory: embed + persist verified Insights via InsightsRepository."""
 
-    @node_trace("save_fragments")
-    def save_fragments(state: JournalState):
+    @node_trace("save_insights")
+    def save_insights(state: ReflectionState) -> dict:
         try:
-            fragment_store.save_fragments(state["fragments"])
-
-            return {
-                "status": Status.FRAGMENTS_SAVED
-            }
-
+            insights_repo.save_insights(state["verified_insights"])
+            return {"status": Status.PROCESSING}
         except Exception as e:
-            logger.exception("Failed to save fragments")
-            return {
-                "status": Status.ERROR,
-                "error_message": str(e),
-            }
+            logger.exception("Failed to save insights")
+            return {"status": Status.ERROR, "error_message": str(e)}
 
-    return save_fragments
+    return save_insights

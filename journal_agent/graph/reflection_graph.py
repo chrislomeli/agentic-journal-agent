@@ -13,13 +13,13 @@ from journal_agent.graph.routing import goto
 logger = logging.getLogger(__name__)
 
 from journal_agent.graph.state import ReflectionState
-from journal_agent.stores import PgFragmentRepository
+from journal_agent.stores import PgFragmentRepository, InsightsRepository
 
 
 def build_reflection_graph(
         registry: LLMRegistry,
         fragment_store: PgFragmentRepository,
-
+        insights_repo: InsightsRepository,
 ):
     """todo add comments
 
@@ -36,7 +36,7 @@ def build_reflection_graph(
     builder.add_node("cluster_fragments", make_cluster_fragments())
     builder.add_node("label_clusters", make_label_clusters(llm=reflection_llm))
     builder.add_node("verify_citations", make_verify_citations(llm=reflection_llm, max_concurrency=3))
-    builder.add_node("persist_insights", make_save_insights(fragment_store=fragment_store))
+    builder.add_node("persist_insights", make_save_insights(insights_repo=insights_repo))
     builder.add_node("format_result", make_format_result())
 
     # Wiring

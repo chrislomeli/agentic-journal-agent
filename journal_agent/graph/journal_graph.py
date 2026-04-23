@@ -31,7 +31,6 @@ from langgraph.graph.state import CompiledStateGraph
 from journal_agent.comms.human_chat import get_human_input
 from journal_agent.comms.llm_client import LLMClient
 from journal_agent.comms.llm_registry import LLMRegistry
-from journal_agent.configure.config_builder import INSIGHTS_FETCH_LIMIT
 from journal_agent.configure.context_builder import ContextBuilder, ContextBuildError
 from journal_agent.configure.prompts import get_prompt
 from journal_agent.graph.node_tracer import node_trace
@@ -78,7 +77,10 @@ def make_get_user_input(session_store: TranscriptStore) -> Callable[..., dict]:
             if user_input == "/quit":
                 return {"status": Status.COMPLETED}
             if user_input == "/reflect":
-                return {"status": Status.REFLECT_REQUESTED}
+                return {
+                    "status": Status.REFLECT_REQUESTED,
+                    "session_messages": [HumanMessage(content="Please share the patterns and insights you've observed from my recent journal entries.")],
+                }
             if user_input == "/recall":
                 return {"status": Status.RECALL_REQUESTED}
 
@@ -159,6 +161,7 @@ def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore, context
                 session_messages=state["session_messages"],
                 recent_messages=state["recent_messages"],
                 retrieved_fragments=state["retrieved_history"],
+                insights=state.get("latest_insights"),
             )
 
             # get the llm response
@@ -201,38 +204,35 @@ def make_reflect_node(reflection_graph) ->  Callable[..., Coroutine[Any, Any, di
     async def reflect_node(state: JournalState) -> dict:
 
         reflection_input = {
-            "fetch_parameters" : state["fetch_parameters"],
-            "limit": INSIGHTS_FETCH_LIMIT,
+            "fetch_parameters": state.get("fetch_parameters"),
             "fragments": [],
             "clusters": [],
             "insights": [],
             "verified_insights": [],
             "latest_insights": [],
             "status": Status.IDLE,
-            "error_message": None
+            "error_message": None,
         }
         result = await reflection_graph.ainvoke(reflection_input)
-        return {"latest_insights": result["verified_insights"]}
+        return {"latest_insights": result["latest_insights"], "status": Status.PROCESSING}
 
     return reflect_node
 
-def make_recall_node(fragment_store: PgFragmentRepository) -> Callable[..., dict]:
-    """Factory: node that queries the fragment store for fragments similar
-    to the latest human message, enriched with intent-derived tags."""
+def make_recall_node(insights_repo) -> Callable[..., dict]:
+    """Factory: node that loads past Insights from the DB within an optional date window."""
 
     @node_trace("recall_node")
     def recall_node(state: JournalState) -> dict:
         try:
-            fetch_params: WindowParams = state["fetch_parameters"]
-            insights = fragment_store.load_window(fetch_params)
-            return {"latest_insights": insights}
+            fetch_params: WindowParams | None = state.get("fetch_parameters")
+            window_start = fetch_params["window_start"] if fetch_params else None
+            window_end = fetch_params["window_end"] if fetch_params else None
+            insights = insights_repo.load_insights(window_start=window_start, window_end=window_end)
+            return {"latest_insights": insights, "status": Status.PROCESSING}
 
         except Exception as e:
-            logger.exception("Failed to retrieve history")
-            return {
-                "status": Status.ERROR,
-                "error_message": str(e),
-            }
+            logger.exception("Failed to recall insights")
+            return {"status": Status.ERROR, "error_message": str(e)}
 
     return recall_node
 
@@ -240,9 +240,6 @@ def make_recall_node(fragment_store: PgFragmentRepository) -> Callable[..., dict
 
 def route_on_user_input(state: JournalState) -> str:
     """After user input: ERROR → END, COMPLETED → save_transcript, else → intent_classifier."""
-    # User requested end (/quit)
-    if state.get("status") == Status.END_REQUESTED:
-        return END
     # User requested reflect (/reflect)
     if state.get("status") == Status.REFLECT_REQUESTED:
         return "reflect"
@@ -282,11 +279,11 @@ def build_journal_graph(
         session_store: TranscriptStore,
         fragment_store: PgFragmentRepository,
         profile_store: UserProfileRepository,
+        insights_repo,
         reflection_graph: CompiledStateGraph,
         transcript_store: TranscriptRepository | None = None,
         thread_store: ThreadsRepository | None = None,
         classified_thread_store: ThreadsRepository | None = None,
-
 ):
     """Build and compile the journal conversation graph.
 
@@ -328,7 +325,7 @@ def build_journal_graph(
 
     # reflection
     builder.add_node("reflect", make_reflect_node(reflection_graph))
-    builder.add_node("recall", make_recall_node(fragment_store=fragment_store))
+    builder.add_node("recall", make_recall_node(insights_repo=insights_repo))
 
     # Wiring
     builder.add_edge(START, "get_user_input")
@@ -342,10 +339,14 @@ def build_journal_graph(
     builder.add_conditional_edges("exchange_decomposer", goto("save_threads", on_completion="save_transcript"))
     builder.add_conditional_edges("thread_classifier", goto("save_classified_threads", on_completion="save_transcript"))
 
+    builder.add_conditional_edges("reflect", goto("get_ai_response", on_completion="save_transcript"))
+    builder.add_conditional_edges("recall", goto("get_ai_response", on_completion="save_transcript"))
+
     # Linear end-of-session pipeline
     builder.add_conditional_edges("save_transcript", goto("exchange_decomposer"))
     builder.add_conditional_edges("save_classified_threads", goto("thread_fragment_extractor"))
     builder.add_conditional_edges("thread_fragment_extractor", goto("save_fragments"))
     builder.add_edge("save_fragments", END)
+
     compiled = builder.compile()
     return compiled

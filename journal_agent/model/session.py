@@ -42,16 +42,13 @@ class Status(StrEnum):
     IDLE = "idle"
     PROCESSING = "processing"
     COMPLETED = "completed"
+    ERROR = "error"
+    REFLECT_REQUESTED = "reflection_requested"
+    RECALL_REQUESTED = "recall"
     TRANSCRIPT_SAVED = "transcript_saved"
-    EXCHANGES_SAVED = "exchanges_saved"
     THREADS_SAVED = "threads_saved"
     CLASSIFIED_THREADS_SAVED = "classified_threads_saved"
     FRAGMENTS_SAVED = "fragments_saved"
-    REFLECT_REQUESTED = "reflect"
-    RECALL_REQUESTED = "recall"
-    END_REQUESTED = "end"
-    ERROR = "error"
-
 
 class Role(Enum):
     HUMAN = "human"

@@ -36,6 +36,7 @@ import numpy as np
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
+from pgvector.psycopg import register_vector
 
 from journal_agent.configure.config_builder import INSIGHTS_FETCH_LIMIT
 from journal_agent.configure.settings import get_settings
@@ -65,6 +66,7 @@ class PgGateway:
             max_size=max_size,
             kwargs={"row_factory": dict_row},
             open=False,
+            configure=register_vector,
         )
 
     def open(self) -> None:
@@ -89,8 +91,11 @@ class PgGateway:
     def fetch_rows(self, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
         """Run a SELECT; return every row as a dict."""
         with self._conn() as conn, conn.cursor() as cur:
-            cur.execute(sql, params)
-            return cur.fetchall()
+            try:
+                cur.execute(sql, params)
+                return cur.fetchall()
+            except Exception as e:
+                raise(e)
 
     def execute(self, sql: str, params: tuple = ()) -> int:
         """Run a mutating statement; return rowcount."""
@@ -191,10 +196,11 @@ class PgGateway:
             Jsonb([t.model_dump() for t in fragment.tags]) if fragment.tags else None
         )
 
+        vec = embedding.tolist() if embedding is not None else None
         self.execute(
             """
             INSERT INTO fragments (fragment_id, session_id, content, tags, embedding, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s::vector, %s)
             ON CONFLICT (fragment_id) DO UPDATE SET content   = EXCLUDED.content,
                                                     tags      = EXCLUDED.tags,
                                                     embedding = COALESCE(EXCLUDED.embedding, fragments.embedding),
@@ -205,7 +211,7 @@ class PgGateway:
                 fragment.session_id,
                 fragment.content,
                 tags_payload,
-                embedding,
+                vec,
                 fragment.timestamp,
             ),
         )
@@ -269,12 +275,12 @@ class PgGateway:
         # Upsert insights
         sql = """
               INSERT INTO insights (insight_id, label, body, verifier_status, confidence, embedding)
-              VALUES (%s, %s, %s, %s, %s, %s)
+              VALUES (%s, %s, %s, %s, %s, %s::vector)
               ON CONFLICT (insight_id) DO UPDATE SET label           = EXCLUDED.label,
                                                      body            = EXCLUDED.body,
                                                      verifier_status = EXCLUDED.verifier_status,
                                                      confidence      = EXCLUDED.confidence,
-                                                     embedding       = COALESCE(EXCLUDED.embedding, insights.embedding); 
+                                                     embedding       = COALESCE(EXCLUDED.embedding, insights.embedding);
               """
         rows = [
             (
@@ -283,7 +289,7 @@ class PgGateway:
                 i.body,
                 i.verifier_status,
                 i.label_confidence,
-                i.embedding or None,
+                i.embedding if i.embedding else None,
             )
             for i in insights
         ]
@@ -444,8 +450,7 @@ class PgGateway:
             logger.exception("get_last_session_id failed")
             return None
 
-    def fetch_fragments_window(self, fetch_params: WindowParams | None = None) -> list[
-        Fragment]:
+    def fetch_fragments_window(self, fetch_params: WindowParams | None = None) -> list[Fragment]:
         """Load fragments from Postgres, optionally filtered by session.
         Returns [] on miss or error.
         """
@@ -453,7 +458,7 @@ class PgGateway:
 
             window_start = fetch_params["window_start"] if fetch_params else None
             window_end = fetch_params["window_end"] if fetch_params else None
-            limit = fetch_params["limit"] if fetch_params else INSIGHTS_FETCH_LIMIT
+            limit = (fetch_params["limit"] if fetch_params else None) or INSIGHTS_FETCH_LIMIT
 
             sql = """
                 SELECT
@@ -469,13 +474,14 @@ class PgGateway:
                     ) AS exchange_ids
                 FROM fragments f
                 LEFT JOIN fragment_exchanges fe ON fe.fragment_id = f.fragment_id
-                WHERE (%s is NULL or f.timestamp >= %s )
-                  AND (%s is NULL or f.timestamp <= %s )
+                WHERE (%s::timestamptz is NULL or f.timestamp >= %s::timestamptz )
+                  AND (%s::timestamptz is NULL or f.timestamp <= %s::timestamptz )
                 GROUP BY f.fragment_id, f.session_id, f.content, f.tags, f.timestamp
                 ORDER BY f.timestamp
                 LIMIT %s
             """
-            return self.fetch_fragments(sql, (window_start, window_start, window_end, window_end, limit))
+            rows =  self.fetch_fragments(sql, (window_start, window_start, window_end, window_end, limit))
+            return rows
 
         except Exception:
             logger.exception("fetch_fragments_window failed")
@@ -493,17 +499,21 @@ class PgGateway:
             results = []
             for r in rows:
                 tag_data = r.get("tags") if isinstance(r.get("tags"), list) else []
+                raw_embedding = r.get("embedding")
+                if isinstance(raw_embedding, str):
+                    raw_embedding = json.loads(raw_embedding)
                 results.append(Fragment(
                     fragment_id=r["fragment_id"],
                     session_id=r["session_id"],
                     content=r["content"],
                     exchange_ids=list(r["exchange_ids"]) if r["exchange_ids"] else [],
                     tags=[Tag(**t) if isinstance(t, dict) else t for t in tag_data],
+                    embedding=list(raw_embedding) if raw_embedding is not None else [],
                     timestamp=r["timestamp"],
                 ))
             return results
         except Exception:
-            logger.exception("fetch_fragments failed for session_id=%s", session_id)
+            logger.exception("fetch_fragments failed")
             return []
 
     def fetch_insights(self, window_start: datetime | None = None, window_end: datetime | None = None) -> list[Insight]:
@@ -546,7 +556,7 @@ class PgGateway:
                 for r in rows
             ]
         except Exception:
-            logger.exception("fetch_insights failed for label=%s, to_date=%s", label, window_end)
+            logger.exception("fetch_insights failed for window_start=%s, window_end=%s", window_start, window_end)
             return []
 
     # ══════════════════════════════════════════════════════════════════════════

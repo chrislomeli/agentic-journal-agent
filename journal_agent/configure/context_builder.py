@@ -21,7 +21,7 @@ import logging
 import tiktoken
 from langchain_core.messages import BaseMessage, SystemMessage
 
-from journal_agent.model.session import Fragment, ContextSpecification
+from journal_agent.model.session import Fragment, Insight, ContextSpecification
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -72,6 +72,7 @@ class ContextBuilder:
         session_messages: list[BaseMessage] | None = None,
         recent_messages: list[BaseMessage] | None = None,
         retrieved_fragments: list[Fragment] | None = None,
+        insights: list[Insight] | None = None,
     ) -> list[BaseMessage]:
         """Build the full message list for one LLM call.
 
@@ -102,20 +103,27 @@ class ContextBuilder:
         retrieved_context: str = json.dumps(
             [{"content": f.content, "tag": [t.tag for t in f.tags]} for f in retrieved_fragments])
 
+        # build the insights context block
+        insights_context: str = json.dumps([
+            {"label": i.label, "body": i.body, "verifier_score": i.verifier_score}
+            for i in (insights or [])
+        ]) if insights else ""
+
         # perform a calculation of the token count
         effective_max = self.max_tokens * (1 - self.threshold)
         count_prompt_tokens = self.count_string_tokens(prompt)
         count_retrieved_context = self.count_string_tokens(retrieved_context)
+        count_insights_tokens = self.count_string_tokens(insights_context) if insights_context else 0
         count_recent_tokens = self.count_message_tokens(recent_messages)
         count_session_tokens = self.count_message_tokens(session_messages)
-        count_all_tokens = count_prompt_tokens + count_retrieved_context + count_recent_tokens + count_session_tokens
+        count_all_tokens = count_prompt_tokens + count_retrieved_context + count_insights_tokens + count_recent_tokens + count_session_tokens
         overage_tokens = count_all_tokens - effective_max
 
-        # if we are over - try removing all the retrieved context first
+        # if we are over - drop retrieved context and insights first (same pruning priority)
         if overage_tokens > 0:
-            # truncate retrieved context
             retrieved_context = ""
-            count_all_tokens -= count_retrieved_context
+            insights_context = ""
+            count_all_tokens -= (count_retrieved_context + count_insights_tokens)
             overage_tokens = max(count_all_tokens - effective_max, 0)
             logger.debug(f"Removing retrieved context reduced overage tokes to {overage_tokens}")
 
@@ -151,6 +159,9 @@ class ContextBuilder:
             rc = f"\n\n<retrieved_context>\n{retrieved_context}\n</retrieved_context>"
             logger.debug(f"Retrieved Context: \n{rc}")
             prompt += rc
+
+        if insights_context:
+            prompt += f"\n\n<reflection_insights>\n{insights_context}\n</reflection_insights>"
 
         system_message = SystemMessage(
             content=prompt
