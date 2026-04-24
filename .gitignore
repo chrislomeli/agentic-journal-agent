@@ -8,5 +8,4 @@ dist/
 build/
 .pytest_cache/
 .env
-data/test/
-data/vector_store/
+data/
