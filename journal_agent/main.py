@@ -5,7 +5,7 @@ from uuid import uuid4
 from langchain_core.messages import BaseMessage
 
 from journal_agent.comms.llm_registry import build_llm_registry
-from journal_agent.configure.config_builder import  configure_environment, models
+from journal_agent.configure.config_builder import LLM_ROLE_CONFIG, configure_environment, models
 from journal_agent.graph.journal_graph import build_journal_graph
 from journal_agent.graph.reflection_graph import build_reflection_graph
 from journal_agent.graph.state import JournalState

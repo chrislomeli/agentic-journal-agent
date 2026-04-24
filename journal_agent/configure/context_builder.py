@@ -85,6 +85,15 @@ class ContextBuilder:
 
         Returns [SystemMessage, ...recent_messages, ...session_messages].
         Raises ContextTooLargeError if pruning cannot bring tokens under budget.
+
+        Parameters
+        ----------
+        retrieved_fragments
+        recent_messages
+        session_messages
+        instruction
+        prompt
+        insights
         """
         # truncate based on the instruction limits
         session_messages = list(
@@ -101,7 +110,7 @@ class ContextBuilder:
 
         # build the retrieved context to a json string
         retrieved_context: str = json.dumps(
-            [{"content": f.content, "tag": [t.tag for t in f.tags]} for f in retrieved_fragments])
+            [{"content": f.content, "tag": [t.tag for t in f.tags]} for f in retrieved_fragments], indent=2)
 
         # build the insights context block
         insights_context: str = json.dumps([

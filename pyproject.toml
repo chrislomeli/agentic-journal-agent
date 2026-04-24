@@ -29,6 +29,9 @@ dependencies = [
     "fastembed>=0.4",
     "scikit-learn>=1.8.0",
     "grandalf>=0.7",
+    "agents>=1.4.0",
+    "langchain>=1.2.15",
+    "langsmith>=0.2",
 ]
 
 [project.optional-dependencies]

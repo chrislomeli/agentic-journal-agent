@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from collections.abc import Callable
 from functools import wraps
 from time import perf_counter
@@ -10,6 +11,8 @@ from journal_agent.graph.state import (
 from journal_agent.model.session import Status
 
 logger = logging.getLogger(__name__)
+
+_ENABLED = os.getenv("NODE_TRACE_ENABLED", "false").lower() in ("1", "true", "yes")
 
 # ── Node tracing decorator ───────────────────────────────────────────────────
 
@@ -42,8 +45,13 @@ def node_trace(node_name: str | None = None):
     Automatically detects whether the wrapped function is sync or async
     and produces the appropriate wrapper, so both ``def`` and ``async def``
     nodes can use the same ``@node_trace(...)`` decorator.
+
+    Set NODE_TRACE_ENABLED=true to activate; disabled by default so output
+    doesn't pollute the console chat interface (use LangSmith instead).
     """
     def decorator(func: Callable[..., dict]) -> Callable[..., dict]:
+        if not _ENABLED:
+            return func
         name = node_name or func.__name__
 
         if asyncio.iscoroutinefunction(func):

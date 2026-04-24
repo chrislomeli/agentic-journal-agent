@@ -14,6 +14,8 @@ import logging
 import os
 
 from journal_agent.configure.settings import (
+    LLM_ROLE_CONFIG,
+    LLMModel,
     LLMLabel,
     LLMProvider,
     Settings,
@@ -98,6 +100,13 @@ def configure_environment() -> Settings:
     # Suppress noisy HTTP logs
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+    # Route node_tracer output to a file so it never clutters the console chat
+    node_tracer_logger = logging.getLogger("journal_agent.graph.node_tracer")
+    node_tracer_logger.propagate = False
+    _fh = logging.FileHandler("journal_agent.log")
+    _fh.setFormatter(logging.Formatter("%(asctime)s  %(name)-35s  %(message)s", datefmt="%H:%M:%S"))
+    node_tracer_logger.addHandler(_fh)
 
     # Print what we're using (redacted)
     print(_redacted_settings_json(settings))
