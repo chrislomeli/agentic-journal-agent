@@ -450,7 +450,7 @@ def build_journal_graph(
     builder.add_node(Node.SAVE_TRANSCRIPT, make_save_transcript(store=transcript_store))
     builder.add_node(Node.SAVE_THREADS,    make_save_threads(store=thread_store))
     builder.add_node(Node.SAVE_CLASSIFIED, make_save_classified_threads(store=classified_thread_store))
-    -
+    builder.add_node(Node.SAVE_FRAGMENTS,  make_save_fragments(fragment_store=fragment_store))
 
     # Command nodes
     builder.add_node(Node.REFLECT, make_reflect_node(reflection_graph))
