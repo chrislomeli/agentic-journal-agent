@@ -38,24 +38,9 @@ from journal_agent.model.session import (
 )
 
 
-def _make_state(**overrides) -> dict:
-    """Minimal JournalState-compatible dict for prompt tests."""
-    state = {
-        "session_id": "test-session",
-        "recent_messages": [],
-        "session_messages": [],
-        "transcript": [],
-        "threads": [],
-        "classified_threads": [],
-        "fragments": [],
-        "retrieved_history": [],
-        "context_specification": ContextSpecification(),
-        "user_profile": UserProfile(),
-        "status": StatusValue.IDLE,
-        "error_message": None,
-    }
-    state.update(overrides)
-    return state
+def _make_state(**overrides) -> JournalState:
+    """Minimal JournalState for prompt tests."""
+    return JournalState(session_id="test-session", **overrides)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
