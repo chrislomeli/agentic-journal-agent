@@ -61,6 +61,17 @@ class LLMClient:
     async def achat(self, messages) -> AIMessage:
         return await self._client.ainvoke(messages)
 
+    def astream(self, messages):
+        """Async-iterate LLM response chunks as they arrive.
+
+        Returns an async iterator of ``AIMessageChunk``. Calling this from
+        inside a graph node causes LangChain to emit ``on_chat_model_stream``
+        events that propagate to ``graph.astream_events(version="v2")``.
+        Consume the chunks (e.g. via ``async for``) so streaming actually
+        runs to completion.
+        """
+        return self._client.astream(messages)
+
     def get_client(self):
         return self._client
 

@@ -24,10 +24,11 @@ from collections.abc import Callable
 from typing import Coroutine, Any
 
 from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from journal_agent.comms.human_chat import get_human_input, talk_to_human, Speaker
+from journal_agent.comms.human_chat import get_human_input, talk_to_human
 from journal_agent.comms.llm_client import LLMClient
 from journal_agent.comms.llm_registry import LLMRegistry
 from journal_agent.configure.context_builder import ContextBuilder, ContextBuildError
@@ -180,12 +181,20 @@ def make_retrieve_history(fragment_store: PgFragmentRepository) -> Callable[...,
     return retrieve_history
 
 
-def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore, context_builder: ContextBuilder | None = None) -> Callable[..., dict]:
-    """Factory: node that assembles context, calls the conversation LLM,
-    records the AI turn, and prints the response to the console."""
+def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore, context_builder: ContextBuilder | None = None) -> Callable[..., Coroutine[Any, Any, dict]]:
+    """Factory: node that assembles context, streams the conversation LLM,
+    and records the AI turn.
+
+    The node calls ``llm.astream(messages)``; LangChain emits
+    ``on_chat_model_stream`` events as chunks arrive, which the caller can
+    consume via ``graph.astream_events(version="v2")``. The node itself
+    accumulates chunks into the final AIMessage and persists the exchange
+    on completion. Terminal printing happens *outside* the node so the same
+    code serves both CLI and HTTP callers.
+    """
     context_builder = context_builder or ContextBuilder()
     @node_trace("get_ai_response")
-    def get_ai_response(state: JournalState) -> dict:
+    async def get_ai_response(state: JournalState) -> dict:
         try:
 
             # Build the system message with retrieved context baked in
@@ -201,12 +210,14 @@ def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore, context
                 insights=state.latest_insights,
             )
 
-            # get the llm response
-            response = llm.chat(messages)
+            # Stream the response. Each chunk emits an on_chat_model_stream
+            # event that downstream consumers (terminal, SSE) can render.
+            chunks: list = []
+            async for chunk in llm.astream(messages):
+                chunks.append(chunk)
 
-            # model answers using context
-            content = (
-                response.content if isinstance(response.content, str) else str(response.content)
+            content = "".join(
+                c.content for c in chunks if isinstance(c.content, str)
             )
 
             # store the whole exchange
@@ -215,7 +226,6 @@ def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore, context
                 role=Role.AI,
                 content=content,
             )
-            talk_to_human(content, Speaker.AI)
             logger.info("AI: %s", content)
 
             # update the transcript with this exchange
@@ -413,6 +423,7 @@ def build_journal_graph(
         transcript_store: TranscriptRepository | None = None,
         thread_store: ThreadsRepository | None = None,
         classified_thread_store: ThreadsRepository | None = None,
+        checkpointer: BaseCheckpointSaver | None = None,
 ):
     """Build and compile the journal conversation graph.
 
@@ -425,6 +436,11 @@ def build_journal_graph(
         → thread_fragment_extractor (classified_threads → fragments)
         → save_fragments
         → END
+
+    The optional ``checkpointer`` persists JournalState between super-steps,
+    keyed by the ``thread_id`` passed in the invocation config. With it, a
+    crashed process or a per-turn API invocation can resume from the last
+    saved state. Without it, state is in-memory only.
     """
     conversation_llm = registry.get("conversation")
     classifier_llm = registry.get("classifier")
@@ -487,5 +503,5 @@ def build_journal_graph(
     builder.add_conditional_edges(Node.THREAD_FRAG_EXTRACTOR,  goto(Node.SAVE_FRAGMENTS),             [Node.SAVE_FRAGMENTS, END])
     builder.add_edge(Node.SAVE_FRAGMENTS, END)
 
-    compiled = builder.compile()
+    compiled = builder.compile(checkpointer=checkpointer)
     return compiled

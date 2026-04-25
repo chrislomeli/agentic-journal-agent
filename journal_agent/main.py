@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from langchain_core.messages import BaseMessage
 
+from journal_agent.comms.human_chat import stream_ai_response_to_terminal
 from journal_agent.comms.llm_registry import build_llm_registry
 from journal_agent.configure.config_builder import LLM_ROLE_CONFIG, configure_environment, models
 from journal_agent.graph.journal_graph import build_journal_graph
@@ -20,6 +21,7 @@ from journal_agent.stores import (
     InsightsRepository,
     ThreadsRepository,
     TranscriptRepository,
+    make_postgres_checkpointer,
 )
 
 
@@ -107,27 +109,38 @@ async def main():
         insights_repo=insights_repo,
     )
 
+    # The checkpointer persists JournalState between super-steps so the graph
+    # can resume after a crash or be invoked per-turn from an API. thread_id
+    # is the session_id — every new run gets a fresh thread.
+    async with make_postgres_checkpointer(setup=True) as checkpointer:
+        journal_graph = build_journal_graph(
+            registry=registry,
+            session_store=session_store,
+            fragment_store=fragment_store,
+            profile_store=profile_store,
+            reflection_graph=reflection_graph,
+            transcript_store=transcript_store,
+            thread_store=thread_store,
+            classified_thread_store=classified_thread_store,
+            checkpointer=checkpointer,
+        )
 
-    journal_graph = build_journal_graph(
-        registry=registry,
-        session_store=session_store,
-        fragment_store=fragment_store,
-        profile_store=profile_store,
-        reflection_graph=reflection_graph,
-        transcript_store=transcript_store,
-        thread_store=thread_store,
-        classified_thread_store=classified_thread_store,
-    )
+        with open("graph.png", "wb") as f:
+            f.write(journal_graph.get_graph().draw_mermaid_png())
 
-    with open("graph.png", "wb") as f:
-        f.write(journal_graph.get_graph().draw_mermaid_png())
+        config = {"configurable": {"thread_id": session_id}}
+        try:
+            # astream_events surfaces per-node lifecycle events plus LLM token
+            # chunks. The terminal consumer filters to get_ai_response tokens
+            # and prints them as they arrive.
+            events = journal_graph.astream_events(
+                initial_state, config=config, version="v2"
+            )
+            await stream_ai_response_to_terminal(events)
 
-    try:
-        await journal_graph.ainvoke(initial_state)
-
-    except KeyboardInterrupt:
-        session_store.store_cache(session_id)
-        print("\nInterrupted. Session saved.")
+        except KeyboardInterrupt:
+            session_store.store_cache(session_id)
+            print("\nInterrupted. Session saved.")
     print("done")
 
 

@@ -13,6 +13,7 @@ from journal_agent.stores.jsonl_gateway import JsonlGateway
 from journal_agent.stores.pg_gateway import PgGateway, get_pg_gateway
 from journal_agent.stores.embedder import Embedder
 from journal_agent.stores.utils import exchanges_to_messages, resolve_project_root
+from journal_agent.stores.checkpointer import make_postgres_checkpointer
 
 __all__ = [
     "TranscriptRepository",
@@ -27,4 +28,5 @@ __all__ = [
     "Embedder",
     "exchanges_to_messages",
     "resolve_project_root",
+    "make_postgres_checkpointer",
 ]
