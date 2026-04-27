@@ -306,7 +306,7 @@ class Insight(BaseModel):
         default=0.0,
         ge=0.0, le=1.0,
         description=(
-            "Your own confidence (0.0-1.0) that this insight is supported by the "
+            "The labeling confidence (0.0-1.0) that this insight was labeled correctly "
         )),
     created_at: datetime = Field(default_factory=datetime.now)
     verifier_status: VerifierStatus = Field(
