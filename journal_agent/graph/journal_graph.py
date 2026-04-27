@@ -68,16 +68,16 @@ logger = logging.getLogger(__name__)
 
 class Node:
     # Conversation graph nodes
-    GET_AI_RESPONSE   = "get_ai_response"
-    RETRIEVE_HISTORY  = "retrieve_history"
+    GET_AI_RESPONSE = "get_ai_response"
+    RETRIEVE_HISTORY = "retrieve_history"
     INTENT_CLASSIFIER = "intent_classifier"
-    PROFILE_SCANNER   = "profile_scanner"
-    REFLECT           = "reflect"
-    RECALL            = "recall"
-    CAPTURE           = "capture"
+    PROFILE_SCANNER = "profile_scanner"
+    REFLECT = "reflect"
+    RECALL = "recall"
+    CAPTURE = "capture"
 
     # End-of-session graph node (#1: collapsed 7-node chain into one)
-    END_OF_SESSION    = "end_of_session"
+    END_OF_SESSION = "end_of_session"
 
 
 # ── Graph nodes ──────────────────────────────────────────────────────────────
@@ -86,6 +86,7 @@ class Node:
 def make_retrieve_history(fragment_store: FragmentRepository) -> Callable[..., dict]:
     """Factory: node that queries the fragment store for fragments similar
     to the latest human message, enriched with intent-derived tags."""
+
     @node_trace("retrieve_history")
     def retrieve_history(state: JournalState) -> dict:
         try:
@@ -119,7 +120,8 @@ def make_retrieve_history(fragment_store: FragmentRepository) -> Callable[..., d
     return retrieve_history
 
 
-def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore, context_builder: ContextBuilder | None = None) -> Callable[..., Coroutine[Any, Any, dict]]:
+def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore,
+                         context_builder: ContextBuilder | None = None) -> Callable[..., Coroutine[Any, Any, dict]]:
     """Factory: node that assembles context, streams the conversation LLM,
     and records the AI turn.
 
@@ -131,6 +133,7 @@ def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore, context
     code serves both CLI and HTTP callers.
     """
     context_builder = context_builder or ContextBuilder()
+
     @node_trace("get_ai_response")
     async def get_ai_response(state: JournalState) -> dict:
         try:
@@ -165,7 +168,6 @@ def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore, context
                 content=content,
             )
 
-
             # update the transcript with this exchange
             return {
                 "session_messages": [AIMessage(content=content)],
@@ -185,10 +187,8 @@ def make_get_ai_response(llm: LLMClient, session_store: TranscriptStore, context
     return get_ai_response
 
 
-
-
-def make_reflect_node(reflection_graph: CompiledStateGraph, fragment_store: FragmentRepository, insights_store: InsightsRepository) ->  Callable[..., Coroutine[Any, Any, dict]]:
-
+def make_reflect_node(reflection_graph: CompiledStateGraph, fragment_store: FragmentRepository,
+                      insights_store: InsightsRepository) -> Callable[..., Coroutine[Any, Any, dict]]:
     @node_trace("reflect_node")
     async def reflect_node(state: JournalState) -> dict:
         try:
@@ -196,7 +196,7 @@ def make_reflect_node(reflection_graph: CompiledStateGraph, fragment_store: Frag
             # ---Process any new insights ----------------
             cursor = datetime.min
             while True:
-                fragments = fragment_store.fetch_unprocessed_batch(after=cursor, limit=500)
+                fragments = fragment_store.load_unprocessed_fragments(after=cursor, limit=500)
                 if not fragments:
                     break
 
@@ -214,8 +214,7 @@ def make_reflect_node(reflection_graph: CompiledStateGraph, fragment_store: Frag
                 await reflection_graph.ainvoke(reflection_input)
                 cursor = fragments[-1].timestamp
 
-
-            # -- now just get the latest insights
+            # -- now just get the latest insights --------------
             latest_insights = insights_store.load_insights() or []
 
             return {
@@ -230,10 +229,8 @@ def make_reflect_node(reflection_graph: CompiledStateGraph, fragment_store: Frag
                 "error_message": str(e),
             }
 
-
-
-
     return reflect_node
+
 
 def make_recall_node(fragment_store: FragmentRepository) -> Callable[..., dict]:
     """Factory: node that searches FragmentStore by topic and surfaces matches as retrieved history."""
@@ -253,6 +250,7 @@ def make_recall_node(fragment_store: FragmentRepository) -> Callable[..., dict]:
             return {"status": StatusValue.ERROR, "error_message": str(e)}
 
     return recall_node
+
 
 def _fragment_from_transcript(n: int, topic: str, session_id: str, exchanges: list) -> tuple[Fragment, str]:
     """Build a Fragment from the last n transcript exchanges. Returns (fragment, confirmation_message)."""
@@ -279,7 +277,7 @@ def _fragment_from_inline(topic: str, content: str, session_id: str) -> tuple[Fr
         session_id=session_id,
         content=content,
         exchange_ids=[],
-        tags=[Tag(tag=topic, note="/save command" )],
+        tags=[Tag(tag=topic, note="/save command")],
         timestamp=datetime.now(),
     )
     return fragment, f"Saved note as '{topic}'."
@@ -409,33 +407,34 @@ def build_conversation_graph(
     # noinspection PyTypeChecker
     builder = StateGraph(JournalState)  # no_qa
 
-    builder.add_node(Node.GET_AI_RESPONSE,   make_get_ai_response(llm=conversation_llm, session_store=session_store))
-    builder.add_node(Node.RETRIEVE_HISTORY,  make_retrieve_history(fragment_store=fragment_store))
+    builder.add_node(Node.GET_AI_RESPONSE, make_get_ai_response(llm=conversation_llm, session_store=session_store))
+    builder.add_node(Node.RETRIEVE_HISTORY, make_retrieve_history(fragment_store=fragment_store))
     builder.add_node(Node.INTENT_CLASSIFIER, make_intent_classifier(llm=classifier_llm))
-    builder.add_node(Node.PROFILE_SCANNER,   make_profile_scanner(llm=classifier_llm, profile_store=profile_store))
+    builder.add_node(Node.PROFILE_SCANNER, make_profile_scanner(llm=classifier_llm, profile_store=profile_store))
 
-    builder.add_node(Node.REFLECT, make_reflect_node(reflection_graph, fragment_store=fragment_store, insights_store=insights_store))
-    builder.add_node(Node.RECALL,  make_recall_node(fragment_store=fragment_store))
+    builder.add_node(Node.REFLECT,
+                     make_reflect_node(reflection_graph, fragment_store=fragment_store, insights_store=insights_store))
+    builder.add_node(Node.RECALL, make_recall_node(fragment_store=fragment_store))
     builder.add_node(Node.CAPTURE, make_capture_node(fragment_store=fragment_store))
 
     # START dispatches by user_command.
     builder.add_conditional_edges(START, route_on_start,
-        [Node.REFLECT, Node.RECALL, Node.CAPTURE, Node.INTENT_CLASSIFIER])
+                                  [Node.REFLECT, Node.RECALL, Node.CAPTURE, Node.INTENT_CLASSIFIER])
 
     # Intent / profile / retrieve all funnel into get_ai_response.
     builder.add_conditional_edges(Node.INTENT_CLASSIFIER, route_on_intent,
-        [Node.GET_AI_RESPONSE, Node.PROFILE_SCANNER, Node.RETRIEVE_HISTORY, END])
+                                  [Node.GET_AI_RESPONSE, Node.PROFILE_SCANNER, Node.RETRIEVE_HISTORY, END])
     builder.add_conditional_edges(Node.PROFILE_SCANNER, route_on_profile,
-        [Node.GET_AI_RESPONSE, Node.RETRIEVE_HISTORY, END])
+                                  [Node.GET_AI_RESPONSE, Node.RETRIEVE_HISTORY, END])
     builder.add_conditional_edges(Node.RETRIEVE_HISTORY, goto(Node.GET_AI_RESPONSE),
-        [Node.GET_AI_RESPONSE, END])
+                                  [Node.GET_AI_RESPONSE, END])
 
     # REFLECT and RECALL both finish with an AI response so the user sees
     # the recalled / reflected content rendered in conversation.
     builder.add_conditional_edges(Node.REFLECT, goto(Node.GET_AI_RESPONSE),
-        [Node.GET_AI_RESPONSE, END])
+                                  [Node.GET_AI_RESPONSE, END])
     builder.add_conditional_edges(Node.RECALL, goto(Node.GET_AI_RESPONSE),
-        [Node.GET_AI_RESPONSE, END])
+                                  [Node.GET_AI_RESPONSE, END])
 
     # CAPTURE just sets system_message; the runner reads it after the turn.
     builder.add_edge(Node.CAPTURE, END)

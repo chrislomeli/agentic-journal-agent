@@ -48,9 +48,9 @@ class FragmentRepository:
         query_vec = self._embedder.embed(query_text)
         return self._pg.search_similar(query_vec, top_k=top_k, min_score=min_relevance)
 
-    def load_unprocessed_fragments(self) -> list[Fragment]:
+    def load_unprocessed_fragments(self, after: datetime, limit: int ) -> list[Fragment]:
         """Return all fragments."""
-        return self._pg.fetch_unprocessed_fragments()
+        return self._pg.fetch_unprocessed_fragments(after,limit)
 
     def load_window(self, fetch_params: WindowParams | None = None) -> list[Fragment]:
         """Return all fragments."""

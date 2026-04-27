@@ -475,7 +475,6 @@ class PgGateway:
                     f.content,
                     f.tags,
                     f.timestamp,
---                    # COALESCE(i.insight_id, NULL ) as insight_id,
                     COALESCE(
                         array_agg(fe.exchange_id) FILTER (WHERE fe.exchange_id IS NOT NULL),
                         ARRAY[]::text[]
@@ -483,9 +482,9 @@ class PgGateway:
                 FROM fragments f
                 LEFT JOIN fragment_exchanges fe ON fe.fragment_id = f.fragment_id
                 LEFT JOIN insight_fragments i ON i.fragment_id = f.fragment_id 
-                WHERE i.insight is NULL
-                    AND f.timestamp >= %s  
-                GROUP BY f.fragment_id, f.session_id, f.content, f.tags, f.timestamp, i.insight_id
+                WHERE i.fragment_id is NULL
+                    AND f.timestamp > %s  
+                GROUP BY f.fragment_id, f.session_id, f.content, f.tags, f.timestamp
                 ORDER BY f.timestamp                                                                                                                                                                                
                 LIMIT %s  
             """
