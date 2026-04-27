@@ -58,7 +58,7 @@ class TestLLMClient:
     def test_structured_calls_with_structured_output(self, stub_client, mock_chat):
         schema = MagicMock()
         runnable = stub_client.structured(schema)
-        mock_chat.with_structured_output.assert_called_once_with(schema)
+        mock_chat.with_structured_output.assert_called_once_with(schema, method="json_schema")
         assert runnable is mock_chat
 
     def test_chat_passes_messages_through_unchanged(self, stub_client, mock_chat):

@@ -33,10 +33,10 @@ from datetime import datetime
 from typing import Any, Generator
 
 import numpy as np
+from pgvector.psycopg import register_vector
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
-from pgvector.psycopg import register_vector
 
 from journal_agent.configure.config_builder import INSIGHTS_FETCH_LIMIT
 from journal_agent.configure.settings import get_settings
@@ -95,7 +95,7 @@ class PgGateway:
                 cur.execute(sql, params)
                 return cur.fetchall()
             except Exception as e:
-                raise(e)
+                raise (e)
 
     def execute(self, sql: str, params: tuple = ()) -> int:
         """Run a mutating statement; return rowcount."""
@@ -380,16 +380,15 @@ class PgGateway:
 
             rows = self.fetch_rows(
                 """
-                    WITH latest AS (
-                        SELECT exchange_id, session_id, timestamp, human_content, ai_content
-                        FROM exchanges
-                        WHERE (%s::timestamptz IS NULL OR timestamp >= %s::timestamptz)
-                          AND (%s::timestamptz IS NULL OR timestamp <= %s::timestamptz)
-                        ORDER BY timestamp DESC
-                        LIMIT %s
-                    )
-                    SELECT * FROM latest
-                    ORDER BY timestamp 
+                WITH latest AS (SELECT exchange_id, session_id, timestamp, human_content, ai_content
+                                FROM exchanges
+                                WHERE (%s::timestamptz IS NULL OR timestamp >= %s::timestamptz)
+                                  AND (%s::timestamptz IS NULL OR timestamp <= %s::timestamptz)
+                                ORDER BY timestamp DESC
+                                LIMIT %s)
+                SELECT *
+                FROM latest
+                ORDER BY timestamp
                 """,
                 (window_start, window_start, window_end, window_end, limit),
             )
@@ -408,7 +407,7 @@ class PgGateway:
                 ))
             return results
         except Exception as e:
-            logger.exception("fetch_exchanges failed ",e)
+            logger.exception("fetch_exchanges failed ", e)
             return []
 
     def fetch_threads(self, session_id: str) -> list[ThreadSegment]:
@@ -460,7 +459,6 @@ class PgGateway:
             logger.exception("get_last_session_id failed")
             return None
 
-
     def fetch_unprocessed_fragments(self, after: datetime, limit: int = 500) -> list[Fragment]:
         """Load fragments from Postgres, optionally filtered by session.
         Returns [] on miss or error.
@@ -468,34 +466,31 @@ class PgGateway:
         try:
 
             sql = """
-                SELECT
-                    f.fragment_id,
-                    f.embedding,
-                    f.session_id,
-                    f.content,
-                    f.tags,
-                    f.timestamp,
-                    COALESCE(
-                        array_agg(fe.exchange_id) FILTER (WHERE fe.exchange_id IS NOT NULL),
-                        ARRAY[]::text[]
-                    ) AS exchange_ids
-                FROM fragments f
-                LEFT JOIN fragment_exchanges fe ON fe.fragment_id = f.fragment_id
-                LEFT JOIN insight_fragments i ON i.fragment_id = f.fragment_id 
-                WHERE i.fragment_id is NULL
-                    AND f.timestamp > %s  
-                GROUP BY f.fragment_id, f.session_id, f.content, f.tags, f.timestamp
-                ORDER BY f.timestamp                                                                                                                                                                                
-                LIMIT %s  
-            """
-            rows =  self.fetch_fragments(sql, (after, limit))
+                  SELECT f.fragment_id,
+                         f.embedding,
+                         f.session_id,
+                         f.content,
+                         f.tags,
+                         f.timestamp,
+                         COALESCE(
+                                         array_agg(fe.exchange_id) FILTER (WHERE fe.exchange_id IS NOT NULL),
+                                         ARRAY []::text[]
+                         ) AS exchange_ids
+                  FROM fragments f
+                           LEFT JOIN fragment_exchanges fe ON fe.fragment_id = f.fragment_id
+                           LEFT JOIN insight_fragments i ON i.fragment_id = f.fragment_id
+                  WHERE i.fragment_id is NULL
+                    AND f.timestamp > %s
+                  GROUP BY f.fragment_id, f.session_id, f.content, f.tags, f.timestamp
+                  ORDER BY f.timestamp
+                  LIMIT %s \
+                  """
+            rows = self.fetch_fragments(sql, (after, limit))
             return rows
 
         except Exception:
             logger.exception("fetch_fragments_window failed")
             return []
-
-
 
     def fetch_fragments_window(self, fetch_params: WindowParams | None = None) -> list[Fragment]:
         """Load fragments from Postgres, optionally filtered by session.
@@ -508,28 +503,27 @@ class PgGateway:
             limit = (fetch_params["limit"] if fetch_params else None) or INSIGHTS_FETCH_LIMIT
 
             sql = """
-                SELECT
-                    f.fragment_id,
-                    f.embedding,
-                    f.session_id,
-                    f.content,
-                    f.tags,
-                    f.timestamp,
-                    COALESCE(i.insight_id, NULL ) as insight_id,
-                    COALESCE(
-                        array_agg(fe.exchange_id) FILTER (WHERE fe.exchange_id IS NOT NULL),
-                        ARRAY[]::text[]
-                    ) AS exchange_ids
-                FROM fragments f
-                LEFT JOIN fragment_exchanges fe ON fe.fragment_id = f.fragment_id
-                LEFT JOIN insight_fragments i ON i.fragment_id = f.fragment_id 
-                WHERE (%s::timestamptz is NULL or f.timestamp >= %s::timestamptz )
-                  AND (%s::timestamptz is NULL or f.timestamp <= %s::timestamptz )
-                GROUP BY f.fragment_id, f.session_id, f.content, f.tags, f.timestamp, i.insight_id
-                ORDER BY f.timestamp
-                LIMIT %s
-            """
-            rows =  self.fetch_fragments(sql, (window_start, window_start, window_end, window_end, limit))
+                  SELECT f.fragment_id,
+                         f.embedding,
+                         f.session_id,
+                         f.content,
+                         f.tags,
+                         f.timestamp,
+                         COALESCE(i.insight_id, NULL) as insight_id,
+                         COALESCE(
+                                         array_agg(fe.exchange_id) FILTER (WHERE fe.exchange_id IS NOT NULL),
+                                         ARRAY []::text[]
+                         )                            AS exchange_ids
+                  FROM fragments f
+                           LEFT JOIN fragment_exchanges fe ON fe.fragment_id = f.fragment_id
+                           LEFT JOIN insight_fragments i ON i.fragment_id = f.fragment_id
+                  WHERE (%s::timestamptz is NULL or f.timestamp >= %s::timestamptz)
+                    AND (%s::timestamptz is NULL or f.timestamp <= %s::timestamptz)
+                  GROUP BY f.fragment_id, f.session_id, f.content, f.tags, f.timestamp, i.insight_id
+                  ORDER BY f.timestamp
+                  LIMIT %s \
+                  """
+            rows = self.fetch_fragments(sql, (window_start, window_start, window_end, window_end, limit))
             return rows
 
         except Exception:

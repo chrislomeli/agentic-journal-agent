@@ -43,7 +43,7 @@ def transcript_store(tmp_path, monkeypatch):
     )
     jsonl = JsonlGateway("transcripts")
     pg = MagicMock()
-    pg.get_last_session_id.return_value = None
+    pg.fetch_exchanges.return_value = None
     repo = TranscriptRepository(jsonl, pg)
     return TranscriptStore(repository=repo)
 

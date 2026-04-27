@@ -1,0 +1,450 @@
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node completed with error
+08:31:06  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:31:06  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:31:06  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:34:16  journal_agent.graph.node_tracer      node completed with error
+08:34:16  journal_agent.graph.node_tracer      node completed with error
+08:34:16  journal_agent.graph.node_tracer      node completed with error
+08:34:16  journal_agent.graph.node_tracer      node completed with error
+08:34:16  journal_agent.graph.node_tracer      node completed with error
+08:34:16  journal_agent.graph.node_tracer      node completed with error
+08:34:16  journal_agent.graph.node_tracer      node completed with error
+08:34:16  journal_agent.graph.node_tracer      node completed with error
+08:34:16  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node completed with error
+08:34:17  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:34:17  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:34:17  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node completed with error
+08:40:54  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:40:54  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:40:54  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:41:50  journal_agent.graph.node_tracer      node completed with error
+08:41:50  journal_agent.graph.node_tracer      node completed with error
+08:41:50  journal_agent.graph.node_tracer      node completed with error
+08:41:50  journal_agent.graph.node_tracer      node completed with error
+08:41:50  journal_agent.graph.node_tracer      node completed with error
+08:41:50  journal_agent.graph.node_tracer      node completed with error
+08:41:50  journal_agent.graph.node_tracer      node completed with error
+08:41:50  journal_agent.graph.node_tracer      node completed with error
+08:41:50  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node completed with error
+08:41:51  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:41:51  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:41:51  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node completed with error
+08:49:04  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:49:04  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+08:49:04  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node completed with error
+11:05:15  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+11:05:15  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
+11:05:15  journal_agent.graph.node_tracer      node raised exception
+Traceback (most recent call last):
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/graph/node_tracer.py", line 88, in wrapper
+    result = func(state)
+             ^^^^^^^^^^^
+  File "/Users/chrislomeli/Source/PROJECTS/agenticAI/journal_agent/journal_agent/tests/test_observability.py", line 165, in exc_node
+    raise RuntimeError("unexpected")
+RuntimeError: unexpected
